@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pick Location</title>
+
+    <!-- LOCAL Leaflet -->
+    <link rel="stylesheet" href="leaflet/leaflet.css" />
+
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+            background: #e9ecef;
+        }
+
+        #status {
+            position: fixed;
+            z-index: 9999;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.80);
+            color: #fff;
+            padding: 8px 10px;
+            font-size: 12px;
+            border-radius: 6px;
+            font-family: "Segoe UI", Arial, sans-serif;
+            max-width: 360px;
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+    <div id="status">Click on the map to select a location…</div>
+    <div id="map"></div>
+
+    <!-- LOCAL Leaflet -->
+    <script src="leaflet/leaflet.js"></script>
+
+    <script>
+        const statusEl = document.getElementById("status");
+        const defaultCenter = [6.7490, 125.3572];
+
+        // If Leaflet didn't load, show error
+        if (typeof L === "undefined") {
+            statusEl.textContent = "Leaflet NOT loaded (check leaflet/leaflet.js)";
+            console.error("Leaflet NOT loaded: L is undefined");
+        } else {
+            // ✅ Force Leaflet marker icon URLs to your WebView2 virtual host
+            if (L.Icon && L.Icon.Default) {
+                if (L.Icon.Default.prototype._getIconUrl) {
+                    delete L.Icon.Default.prototype._getIconUrl;
+                }
+                L.Icon.Default.mergeOptions({
+                    iconRetinaUrl: "https://appassets/leaflet/images/marker-icon-2x.png",
+                    iconUrl: "https://appassets/leaflet/images/marker-icon.png",
+                    shadowUrl: "https://appassets/leaflet/images/marker-shadow.png"
+                });
+            }
+        }
+
+        let map = null;
+        let marker = null;
+
+        function ensureMap() {
+            if (map || typeof L === "undefined") return;
+
+            map = L.map("map", {
+                center: defaultCenter,
+                zoom: 13,
+                zoomControl: true
+            });
+
+            L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+                attribution: "&copy; OpenStreetMap contributors"
+            }).addTo(map);
+
+            map.on("click", async (e) => {
+                const lat = e.latlng.lat;
+                const lng = e.latlng.lng;
+
+                if (!marker) {
+                    marker = L.marker([lat, lng], { draggable: true }).addTo(map);
+                    marker.on("dragend", async () => {
+                        const p = marker.getLatLng();
+                        await handlePick(p.lat, p.lng);
+                    });
+                } else {
+                    marker.setLatLng([lat, lng]);
+                }
+
+                await handlePick(lat, lng);
+            });
+        }
+
+        // Called by WinForms to fix WebView2 sizing after modal opens
+        window.invalidateMap = function () {
+            if (!map) return;
+            setTimeout(() => map.invalidateSize(true), 150);
+        };
+
+        async function reverseGeocode(lat, lng) {
+            const url =
+                "https://nominatim.openstreetmap.org/reverse?format=jsonv2" +
+                "&lat=" + encodeURIComponent(lat) +
+                "&lon=" + encodeURIComponent(lng);
+
+            try {
+                const res = await fetch(url, {
+                    method: "GET",
+                    headers: {
+                        "Accept": "application/json"
+                    }
+                });
+
+                if (!res.ok) return null;
+
+                const json = await res.json();
+                return (json && json.display_name) ? json.display_name : null;
+            } catch (err) {
+                console.error("Reverse geocode failed:", err);
+                return null;
+            }
+        }
+
+        async function handlePick(lat, lng) {
+            const latStr = Number(lat).toFixed(6);
+            const lngStr = Number(lng).toFixed(6);
+
+            statusEl.textContent = `Selected:\nLat: ${latStr}\nLng: ${lngStr}\nFetching address...`;
+
+            const address = (await reverseGeocode(lat, lng)) || "Unknown address";
+
+            statusEl.textContent = `Selected:\nLat: ${latStr}\nLng: ${lngStr}\n${address}`;
+
+            // Send data to WinForms
+            try {
+                if (window.chrome && window.chrome.webview) {
+                    window.chrome.webview.postMessage(JSON.stringify({
+                        latitude: lat,
+                        longitude: lng,
+                        address: address
+                    }));
+                }
+            } catch (e) {
+                console.error("postMessage failed", e);
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            ensureMap();
+        });
+    </script>
+</body>
+</html>

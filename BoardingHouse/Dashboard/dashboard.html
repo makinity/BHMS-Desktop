@@ -1,0 +1,432 @@
+﻿<!-- Dashboard/dashboard.html -->
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Dashboard Charts</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        html, body {
+            height: 100%;
+            width: 100%;
+            margin: 0;
+            box-sizing: border-box;
+            font-family: "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            min-height: 100%;
+            width: 100%;
+            overflow: hidden;
+            background: #f6f7f9;
+        }
+
+        .wrap {
+            flex: 1;
+            width: 100%;
+            min-height: 0;
+            padding: 22px;
+            box-sizing: border-box;
+            overflow: auto;
+        }
+
+        .headerRow {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .title {
+            font-size: 22px;
+            font-weight: 800;
+            margin: 0;
+            color: #111;
+        }
+
+        .updated {
+            font-size: 12px;
+            color: #666;
+            white-space: nowrap;
+        }
+
+        .kpiGrid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 14px;
+            margin-bottom: 18px;
+        }
+
+        .kpiCard {
+            border: 1px solid #e3e3e3;
+            border-radius: 12px;
+            padding: 14px 16px;
+            background: #fff;
+        }
+
+        .kpiLabel {
+            font-size: 13px;
+            color: #444;
+            font-weight: 700;
+            margin: 0 0 8px 0;
+        }
+
+        .kpiValue {
+            font-size: 30px;
+            font-weight: 900;
+            line-height: 1.1;
+            margin: 0;
+            color: #111;
+        }
+
+        .kpiSub {
+            color: #666;
+            font-size: 12px;
+            margin-top: 6px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 18px;
+            align-items: stretch;
+        }
+
+        .card {
+            border: 1px solid #e3e3e3;
+            border-radius: 12px;
+            padding: 16px;
+            background: #fff;
+        }
+
+            .card h3 {
+                margin: 0 0 10px 0;
+                font-size: 16px;
+                font-weight: 800;
+                color: #111;
+            }
+
+        .sub {
+            color: #666;
+            font-size: 13px;
+            margin-bottom: 10px;
+        }
+
+        canvas {
+            width: 100% !important;
+            height: 320px !important;
+        }
+
+        #doughnut {
+            height: 260px !important;
+        }
+
+        .activityWrap {
+            margin-top: 10px;
+            border: 1px solid #eee;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #fff;
+        }
+
+        .activityItem {
+            display: flex;
+            justify-content: space-between;
+            gap: 14px;
+            padding: 12px 14px;
+            border-bottom: 1px solid #f1f1f1;
+        }
+
+            .activityItem:last-child {
+                border-bottom: none;
+            }
+
+        .activityLeft {
+            min-width: 0;
+        }
+
+        .activityTitle {
+            font-size: 13px;
+            font-weight: 800;
+            color: #111;
+            margin: 0 0 4px 0;
+        }
+
+        .activityMeta {
+            font-size: 12px;
+            color: #666;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+        }
+
+        .activityTime {
+            font-size: 12px;
+            color: #666;
+            white-space: nowrap;
+            align-self: flex-start;
+        }
+
+        @media (max-width: 1100px) {
+            .kpiGrid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 900px) {
+            .kpiGrid {
+                grid-template-columns: 1fr;
+            }
+
+            .grid {
+                grid-template-columns: 1fr;
+            }
+
+            canvas {
+                height: 280px !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="wrap">
+        <div class="headerRow">
+            <div class="title">Dashboard</div>
+            <div class="updated" id="lastUpdated">Last updated: --</div>
+        </div>
+
+        <div class="kpiGrid">
+            <div class="kpiCard">
+                <div class="kpiLabel">Registered Boarding Houses</div>
+                <div class="kpiValue" id="kpiBH">--</div>
+                <div class="kpiSub">Active boarding houses</div>
+            </div>
+
+            <div class="kpiCard">
+                <div class="kpiLabel">Total Tenants</div>
+                <div class="kpiValue" id="kpiTenants">--</div>
+                <div class="kpiSub">Active tenants</div>
+            </div>
+
+            <div class="kpiCard">
+                <div class="kpiLabel">This Month Collections</div>
+                <div class="kpiValue" id="kpiCollections">₱ --</div>
+                <div class="kpiSub">Posted payments this month</div>
+            </div>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <h3>Occupancy Breakdown</h3>
+                <div class="sub">Occupied vs Vacant vs Reserved</div>
+                <canvas id="doughnut"></canvas>
+            </div>
+
+            <div class="card">
+                <h3>Most Popular Boarding Houses (Ranked)</h3>
+                <div class="sub">Top 5 by active rentals</div>
+                <canvas id="barRank"></canvas>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top: 18px;">
+            <h3>Recent Activities</h3>
+            <div class="sub">Latest actions in the system</div>
+
+            <div class="activityWrap" id="activityWrap">
+                <div class="activityItem">
+                    <div class="activityLeft">
+                        <div class="activityTitle">Waiting for data...</div>
+                        <div class="activityMeta">If this stays, your app didn’t send JSON yet.</div>
+                    </div>
+                    <div class="activityTime"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let doughnutChart = null;
+        let barChart = null;
+
+        function peso(n) {
+            const x = Number(n || 0);
+            return '₱ ' + x.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function setLastUpdated(dt) {
+            const el = document.getElementById('lastUpdated');
+            const d = new Date(dt);
+            if (isNaN(d.getTime())) {
+                const now = new Date();
+                el.textContent = 'Last updated: ' + now.toLocaleString();
+                return;
+            }
+            el.textContent = 'Last updated: ' + d.toLocaleString();
+        }
+
+        function timeAgo(dt) {
+            const d = new Date(dt);
+            if (isNaN(d.getTime())) return '';
+            const diff = Math.max(0, Date.now() - d.getTime());
+            const mins = Math.floor(diff / 60000);
+            if (mins < 1) return 'Just now';
+            if (mins < 60) return `${mins} mins ago`;
+            const hrs = Math.floor(mins / 60);
+            if (hrs < 24) return `${hrs} hrs ago`;
+            const days = Math.floor(hrs / 24);
+            return `${days} days ago`;
+        }
+
+        function renderOccupancy(data) {
+            const doughnutCtx = document.getElementById('doughnut');
+
+            const occ = [
+                Number(data.occupiedRooms || 0),
+                Number(data.vacantRooms || 0),
+                Number(data.reservedRooms || 0)
+            ];
+
+            if (doughnutChart) doughnutChart.destroy();
+
+            doughnutChart = new Chart(doughnutCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Occupied', 'Vacant', 'Reserved'],
+                    datasets: [{ data: occ }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        tooltip: { enabled: true }
+                    },
+                    cutout: '65%'
+                }
+            });
+        }
+
+        function renderTopBH(data) {
+            const barCtx = document.getElementById('barRank');
+
+            const list = Array.isArray(data.topBoardingHouses) ? data.topBoardingHouses : [];
+            const labels = list.map(x => x.name);
+            const scores = list.map(x => Number(x.score || 0));
+
+            if (barChart) barChart.destroy();
+
+            barChart = new Chart(barCtx, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'Active Rentals',
+                        data: scores
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+                }
+            });
+        }
+
+        function renderActivities(data) {
+            const wrap = document.getElementById('activityWrap');
+            wrap.innerHTML = '';
+
+            const items = Array.isArray(data.recentActivities) ? data.recentActivities : [];
+
+            if (items.length === 0) {
+                const empty = document.createElement('div');
+                empty.className = 'activityItem';
+                empty.innerHTML = `
+              <div class="activityLeft">
+                <div class="activityTitle">No recent activities</div>
+                <div class="activityMeta">audit_logs is empty.</div>
+              </div>
+              <div class="activityTime"></div>
+            `;
+                wrap.appendChild(empty);
+                return;
+            }
+
+            items.forEach(it => {
+                const row = document.createElement('div');
+                row.className = 'activityItem';
+
+                const left = document.createElement('div');
+                left.className = 'activityLeft';
+
+                const title = document.createElement('div');
+                title.className = 'activityTitle';
+                title.textContent = it.title || 'Activity';
+
+                const meta = document.createElement('div');
+                meta.className = 'activityMeta';
+                meta.textContent = it.meta || '';
+
+                left.appendChild(title);
+                left.appendChild(meta);
+
+                const t = document.createElement('div');
+                t.className = 'activityTime';
+                t.textContent = it.createdAt ? timeAgo(it.createdAt) : '';
+
+                row.appendChild(left);
+                row.appendChild(t);
+
+                wrap.appendChild(row);
+            });
+        }
+
+        function applyDashboard(data) {
+            // KPIs
+            document.getElementById('kpiBH').textContent =
+                (data.kpiRegisteredBoardingHouses ?? 0).toLocaleString();
+
+            document.getElementById('kpiTenants').textContent =
+                (data.kpiTotalTenants ?? 0).toLocaleString();
+
+            document.getElementById('kpiCollections').textContent =
+                peso(data.kpiThisMonthCollections);
+
+            // Timestamp
+            setLastUpdated(data.generatedAt || new Date());
+
+            // Charts + activities
+            renderOccupancy(data);
+            renderTopBH(data);
+            renderActivities(data);
+        }
+
+        // Listen for data from WinForms (WebView2)
+        window.chrome?.webview?.addEventListener('message', (event) => {
+            try {
+                // IMPORTANT: Support both string and object payloads
+                const data = (typeof event.data === "string")
+                    ? JSON.parse(event.data)
+                    : event.data;
+
+                applyDashboard(data);
+            } catch (e) {
+                console.error('Dashboard apply failed:', e, 'raw:', event.data);
+            }
+        });
+
+        // Fallback last updated while waiting
+        setLastUpdated(new Date());
+    </script>
+</body>
+</html>

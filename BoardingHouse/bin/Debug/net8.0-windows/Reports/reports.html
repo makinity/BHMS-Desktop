@@ -1,0 +1,613 @@
+<!-- FILE: Reports/reports.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Admin Reports</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #f4f6fb;
+            color: #0f172a;
+        }
+
+        .page-shell {
+            max-width: 1360px;
+            margin: 0 auto;
+            padding: 24px 32px 40px;
+        }
+
+        .filter-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+            align-items: end;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        label {
+            font-size: 13px;
+            color: #475569;
+            font-weight: 600;
+        }
+
+        input,
+        select {
+            height: 42px;
+            border-radius: 6px;
+            border: 1px solid #cbd5f5;
+            padding: 0 10px;
+            font-size: 14px;
+            font-family: inherit;
+            background: #fff;
+            transition: border-color 0.2s ease;
+        }
+
+            input:focus,
+            select:focus {
+                border-color: #2563eb;
+                outline: none;
+                box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+            }
+
+        button {
+            border: none;
+            border-radius: 6px;
+            background: linear-gradient(180deg, #2563eb, #1e3a8a);
+            color: #fff;
+            font-size: 15px;
+            font-weight: 600;
+            height: 42px;
+            cursor: pointer;
+            transition: transform 0.1s ease, opacity 0.1s ease;
+        }
+
+            button:active {
+                transform: translateY(1px);
+            }
+
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .kpi-card {
+            background: #fff;
+            border-radius: 12px;
+            padding: 18px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 20px rgba(15, 23, 42, 0.06);
+        }
+
+        .kpi-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #475569;
+            margin-bottom: 6px;
+        }
+
+        .kpi-value {
+            font-size: 26px;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .kpi-sub {
+            font-size: 12px;
+            color: #94a3b8;
+            margin-top: 6px;
+        }
+
+        .card {
+            background: #fff;
+            border-radius: 16px;
+            padding: 22px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 6px 24px rgba(15, 23, 42, 0.06);
+            margin-bottom: 24px;
+        }
+
+        .card-title-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+            .card-title-row h3 {
+                margin: 0;
+                font-size: 18px;
+                font-weight: 700;
+            }
+
+        .muted {
+            font-size: 13px;
+            color: #64748b;
+        }
+
+        .chart-wrapper {
+            position: relative;
+            min-height: 220px;
+        }
+
+            .chart-wrapper canvas {
+                width: 100% !important;
+                height: 100% !important;
+            }
+
+        .chart-empty {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #94a3b8;
+            font-size: 15px;
+            background: rgba(248, 250, 252, 0.75);
+            border-radius: 12px;
+            text-align: center;
+            padding: 16px;
+            visibility: hidden;
+        }
+
+            .chart-empty.visible {
+                visibility: visible;
+            }
+
+        .table-wrapper {
+            max-height: 320px;
+            overflow-y: auto;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 700px;
+        }
+
+        thead th {
+            position: sticky;
+            top: 0;
+            background: #f8fafc;
+            padding: 12px 16px;
+            text-align: left;
+            color: #475569;
+            font-size: 13px;
+            letter-spacing: 0.02em;
+        }
+
+        tbody td {
+            padding: 12px 16px;
+            border-top: 1px solid #edf2f7;
+            font-size: 14px;
+        }
+
+        tbody tr:nth-child(even) {
+            background: #fbfbfd;
+        }
+
+        .status-cell {
+            font-weight: 600;
+            color: #1d4ed8;
+        }
+
+        .empty-state {
+            display: none;
+            padding: 28px 16px;
+            text-align: center;
+            color: #94a3b8;
+            font-size: 15px;
+        }
+
+            .empty-state.visible {
+                display: block;
+            }
+
+        @media (max-width: 768px) {
+            .table-wrapper {
+                border-radius: 8px;
+            }
+
+            .card {
+                padding: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page-shell">
+        <section class="filter-row">
+            <div class="filter-group">
+                <label for="filterFrom">From</label>
+                <input type="date" id="filterFrom" />
+            </div>
+            <div class="filter-group">
+                <label for="filterTo">To</label>
+                <input type="date" id="filterTo" />
+            </div>
+            <div class="filter-group">
+                <label for="filterBoardingHouse">Boarding House</label>
+                <select id="filterBoardingHouse">
+                    <option value="">All boarding houses</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <button type="button" id="btnGenerate">Generate report</button>
+            </div>
+        </section>
+
+        <section class="kpi-grid">
+            <article class="kpi-card">
+                <div class="kpi-label">Total Collections</div>
+                <div class="kpi-value" id="kpiTotalCollections">?0.00</div>
+                <div class="kpi-sub">Posted payments in the range</div>
+            </article>
+            <article class="kpi-card">
+                <div class="kpi-label">Payments Count</div>
+                <div class="kpi-value" id="kpiTotalPayments">0</div>
+                <div class="kpi-sub">Posted payment records</div>
+            </article>
+            <article class="kpi-card">
+                <div class="kpi-label">Active Rentals</div>
+                <div class="kpi-value" id="kpiActiveRentals">0</div>
+                <div class="kpi-sub">Active rentals during period</div>
+            </article>
+            <article class="kpi-card">
+                <div class="kpi-label">Occupied Rooms</div>
+                <div class="kpi-value" id="kpiOccupied">0</div>
+                <div class="kpi-sub">Rooms marked OCCUPIED</div>
+            </article>
+            <article class="kpi-card">
+                <div class="kpi-label">Available Rooms</div>
+                <div class="kpi-value" id="kpiAvailable">0</div>
+                <div class="kpi-sub">Rooms marked AVAILABLE</div>
+            </article>
+            <article class="kpi-card">
+                <div class="kpi-label">Maintenance</div>
+                <div class="kpi-value" id="kpiMaintenance">0</div>
+                <div class="kpi-sub">Rooms in MAINTENANCE</div>
+            </article>
+            <article class="kpi-card">
+                <div class="kpi-label">Occupancy Rate</div>
+                <div class="kpi-value" id="kpiOccupancyRate">0%</div>
+                <div class="kpi-sub">Occupied vs total rooms</div>
+            </article>
+        </section>
+
+        <section class="card">
+            <div class="card-title-row">
+                <h3>Monthly Collections Trend</h3>
+                <div class="muted" id="trendRangeLabel"></div>
+            </div>
+            <div class="chart-wrapper">
+                <canvas id="trendChart"></canvas>
+                <div class="chart-empty" id="trendEmpty">No monthly collection data for the selected range.</div>
+            </div>
+        </section>
+
+        <section class="card">
+            <div class="card-title-row">
+                <h3>Collections</h3>
+            </div>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Boarding House</th>
+                            <th>Room</th>
+                            <th>Tenant</th>
+                            <th>Amount</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="collectionsTableBody"></tbody>
+                </table>
+                <div class="empty-state" id="collectionsEmpty">No data for the selected range.</div>
+            </div>
+        </section>
+
+        <section class="card">
+            <div class="card-title-row">
+                <h3>Occupancy by Boarding House</h3>
+            </div>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Boarding House</th>
+                            <th>Occupied</th>
+                            <th>Available</th>
+                            <th>Maintenance</th>
+                            <th>Total Rooms</th>
+                        </tr>
+                    </thead>
+                    <tbody id="occupancyTableBody"></tbody>
+                </table>
+                <div class="empty-state" id="occupancyEmpty">No occupancy data available.</div>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        const webviewBridge = window.chrome?.webview;
+        const filterFrom = document.getElementById("filterFrom");
+        const filterTo = document.getElementById("filterTo");
+        const filterBoardingHouse = document.getElementById("filterBoardingHouse");
+        const generateBtn = document.getElementById("btnGenerate");
+
+        const kpiTotalCollections = document.getElementById("kpiTotalCollections");
+        const kpiTotalPayments = document.getElementById("kpiTotalPayments");
+        const kpiActiveRentals = document.getElementById("kpiActiveRentals");
+        const kpiOccupied = document.getElementById("kpiOccupied");
+        const kpiAvailable = document.getElementById("kpiAvailable");
+        const kpiMaintenance = document.getElementById("kpiMaintenance");
+        const kpiOccupancyRate = document.getElementById("kpiOccupancyRate");
+
+        const collectionsBody = document.getElementById("collectionsTableBody");
+        const collectionsEmpty = document.getElementById("collectionsEmpty");
+        const occupancyBody = document.getElementById("occupancyTableBody");
+        const occupancyEmpty = document.getElementById("occupancyEmpty");
+        const trendRangeLabel = document.getElementById("trendRangeLabel");
+        const trendEmpty = document.getElementById("trendEmpty");
+
+        const ctx = document.getElementById("trendChart").getContext("2d");
+        let trendChart;
+
+        const currencyFormatter = new Intl.NumberFormat("en-PH", {
+            style: "currency",
+            currency: "PHP",
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+
+        const numberFormatter = new Intl.NumberFormat("en-US");
+
+        function formatCurrency(value) {
+            if (value === null || value === undefined) return currencyFormatter.format(0);
+            return currencyFormatter.format(Number(value));
+        }
+
+        function formatNumber(value) {
+            if (value === null || value === undefined) return "0";
+            return numberFormatter.format(Number(value));
+        }
+
+        function formatDateForInput(value) {
+            if (!value) return "";
+            return new Date(value).toISOString().split("T")[0];
+        }
+
+        function formatDateReadable(value) {
+            if (!value) return "";
+            return new Date(value).toLocaleDateString(undefined, {
+                year: "numeric",
+                month: "short",
+                day: "numeric"
+            });
+        }
+
+        function renderPayload(payload) {
+            if (!payload) return;
+
+            filterFrom.value = formatDateForInput(payload.from);
+            filterTo.value = formatDateForInput(payload.to);
+            updateBoardingHouseOptions(payload.boardingHouses, payload.selectedBoardingHouseId);
+
+            kpiTotalCollections.textContent = formatCurrency(payload.totalCollections);
+            kpiTotalPayments.textContent = formatNumber(payload.totalPaymentsCount);
+            kpiActiveRentals.textContent = formatNumber(payload.activeRentalsCount);
+            kpiOccupied.textContent = formatNumber(payload.occupancyOccupied);
+            kpiAvailable.textContent = formatNumber(payload.occupancyAvailable);
+            kpiMaintenance.textContent = formatNumber(payload.occupancyMaintenance);
+            kpiOccupancyRate.textContent = `${payload.occupancyRate?.toFixed(2) ?? "0.00"}%`;
+
+            trendRangeLabel.textContent = `${formatDateReadable(payload.from)} – ${formatDateReadable(payload.to)}`;
+            updateTrendChart(payload.monthlyTrend);
+            renderCollectionsTable(payload.collectionsRows);
+            renderOccupancyTable(payload.occupancyByHouse);
+        }
+
+        function updateBoardingHouseOptions(houses = [], selectedId) {
+            if (!Array.isArray(houses)) houses = [];
+            const existingValue = filterBoardingHouse.value;
+            filterBoardingHouse.innerHTML = "<option value=\"\">All boarding houses</option>";
+            houses.forEach(house => {
+                const option = document.createElement("option");
+                option.value = String(house.id);
+                option.textContent = house.name;
+                filterBoardingHouse.appendChild(option);
+            });
+            if (selectedId !== null && selectedId !== undefined) {
+                filterBoardingHouse.value = String(selectedId);
+            } else {
+                filterBoardingHouse.value = "";
+            }
+            if (!filterBoardingHouse.value && existingValue) {
+                filterBoardingHouse.value = existingValue;
+            }
+        }
+
+        function updateTrendChart(trend = []) {
+            const labels = Array.isArray(trend) ? trend.map(point => point.monthLabel || "") : [];
+            const data = Array.isArray(trend) ? trend.map(point => point.amount ?? 0) : [];
+            const hasContent = data.some(value => value > 0);
+            trendEmpty.classList.toggle("visible", !hasContent);
+
+            const displayLabels = labels.length ? labels : ["No data"];
+            const displayData = data.length ? data : [0];
+
+            if (!trendChart) {
+                trendChart = new Chart(ctx, {
+                    type: "line",
+                    data: {
+                        labels: displayLabels,
+                        datasets: [
+                            {
+                                label: "Collections",
+                                data: displayData,
+                                borderColor: "#2563eb",
+                                backgroundColor: "rgba(37, 99, 235, 0.2)",
+                                tension: 0.35,
+                                pointRadius: 4,
+                                pointBackgroundColor: "#2563eb",
+                                fill: true
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: {
+                                grid: { display: false },
+                                ticks: { color: "#475569" }
+                            },
+                            y: {
+                                grid: { color: "rgba(15, 23, 42, 0.08)", borderDash: [4, 4] },
+                                ticks: {
+                                    color: "#475569",
+                                    callback(value) {
+                                        return formatCurrency(value);
+                                    }
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label(context) {
+                                        return formatCurrency(context.parsed.y);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            } else {
+                trendChart.data.labels = displayLabels;
+                trendChart.data.datasets[0].data = displayData;
+                trendChart.update();
+            }
+        }
+
+        function renderCollectionsTable(rows = []) {
+            collectionsBody.innerHTML = "";
+            if (!Array.isArray(rows) || rows.length === 0) {
+                collectionsEmpty.classList.add("visible");
+                return;
+            }
+
+            collectionsEmpty.classList.remove("visible");
+            rows.forEach(row => {
+                const tr = document.createElement("tr");
+                const dateCell = document.createElement("td");
+                const boardingCell = document.createElement("td");
+                const roomCell = document.createElement("td");
+                const tenantCell = document.createElement("td");
+                const amountCell = document.createElement("td");
+                const statusCell = document.createElement("td");
+
+                dateCell.textContent = formatDateReadable(row.paymentDate);
+                boardingCell.textContent = row.boardingHouseName || "-";
+                roomCell.textContent = row.roomNameOrNumber || "-";
+                tenantCell.textContent = row.tenantFullName || "-";
+                amountCell.textContent = formatCurrency(row.amount);
+                statusCell.textContent = row.status || "-";
+                statusCell.classList.add("status-cell");
+
+                tr.appendChild(dateCell);
+                tr.appendChild(boardingCell);
+                tr.appendChild(roomCell);
+                tr.appendChild(tenantCell);
+                tr.appendChild(amountCell);
+                tr.appendChild(statusCell);
+
+                collectionsBody.appendChild(tr);
+            });
+        }
+
+        function renderOccupancyTable(rows = []) {
+            occupancyBody.innerHTML = "";
+            if (!Array.isArray(rows) || rows.length === 0) {
+                occupancyEmpty.classList.add("visible");
+                return;
+            }
+
+            occupancyEmpty.classList.remove("visible");
+            rows.forEach(row => {
+                const tr = document.createElement("tr");
+                const nameCell = document.createElement("td");
+                const occupiedCell = document.createElement("td");
+                const availableCell = document.createElement("td");
+                const maintenanceCell = document.createElement("td");
+                const totalCell = document.createElement("td");
+
+                nameCell.textContent = row.boardingHouseName || "-";
+                occupiedCell.textContent = formatNumber(row.occupied);
+                availableCell.textContent = formatNumber(row.available);
+                maintenanceCell.textContent = formatNumber(row.maintenance);
+                totalCell.textContent = formatNumber(row.totalRooms);
+
+                tr.appendChild(nameCell);
+                tr.appendChild(occupiedCell);
+                tr.appendChild(availableCell);
+                tr.appendChild(maintenanceCell);
+                tr.appendChild(totalCell);
+
+                occupancyBody.appendChild(tr);
+            });
+        }
+
+        function collectFilters() {
+            const from = filterFrom.value || null;
+            const to = filterTo.value || null;
+            const boardingValue = filterBoardingHouse.value;
+            const boardingHouseId = boardingValue ? Number(boardingValue) : null;
+            return {
+                type: "filters",
+                from,
+                to,
+                boardingHouseId: Number.isNaN(boardingHouseId) ? null : boardingHouseId
+            };
+        }
+
+        generateBtn.addEventListener("click", () => {
+            if (!webviewBridge) return;
+            webviewBridge.postMessage(collectFilters());
+        });
+
+        if (webviewBridge) {
+            webviewBridge.addEventListener("message", event => {
+                const payload = typeof event.data === "string" ? JSON.parse(event.data) : event.data;
+                renderPayload(payload);
+            });
+        } else {
+            trendEmpty.textContent = "WebView bridge is unavailable.";
+            trendEmpty.classList.add("visible");
+            collectionsEmpty.textContent = "Data unavailable outside WebView.";
+            collectionsEmpty.classList.add("visible");
+            occupancyEmpty.textContent = "Data unavailable outside WebView.";
+            occupancyEmpty.classList.add("visible");
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Single Boarding House Map</title>
+
+    <!-- LOCAL Leaflet -->
+    <link rel="stylesheet" href="leaflet/leaflet.css" />
+
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+            background: #e9ecef;
+        }
+
+        #status {
+            position: fixed;
+            z-index: 9999;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.80);
+            color: #fff;
+            padding: 8px 10px;
+            font-size: 12px;
+            border-radius: 6px;
+            font-family: "Segoe UI", Arial, sans-serif;
+            max-width: 360px;
+            line-height: 1.4;
+            white-space: pre-line;
+        }
+    </style>
+</head>
+<body>
+    <div id="status">Waiting for boarding house data…</div>
+    <div id="map"></div>
+
+    <!-- LOCAL Leaflet -->
+    <script src="leaflet/leaflet.js"></script>
+
+    <script>
+        const statusEl = document.getElementById("status");
+
+        // Default center (Digos City) in case data doesn't arrive yet
+        const fallbackCenter = [6.7490, 125.3572];
+
+        // If Leaflet didn't load, show error
+        if (typeof L === "undefined") {
+            statusEl.textContent = "Leaflet NOT loaded (check leaflet/leaflet.js)";
+            console.error("Leaflet NOT loaded: L is undefined");
+        } else {
+            // ✅ Force Leaflet marker icon URLs to your WebView2 virtual host
+            if (L.Icon && L.Icon.Default) {
+                if (L.Icon.Default.prototype._getIconUrl) {
+                    delete L.Icon.Default.prototype._getIconUrl;
+                }
+                L.Icon.Default.mergeOptions({
+                    iconRetinaUrl: "https://appassets/leaflet/images/marker-icon-2x.png",
+                    iconUrl: "https://appassets/leaflet/images/marker-icon.png",
+                    shadowUrl: "https://appassets/leaflet/images/marker-shadow.png"
+                });
+            }
+        }
+
+        let map = null;
+        let marker = null;
+
+        function ensureMap() {
+            if (map || typeof L === "undefined") return;
+
+            map = L.map("map", {
+                center: fallbackCenter,
+                zoom: 13,
+                zoomControl: true
+            });
+
+            L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+                attribution: "&copy; OpenStreetMap contributors"
+            }).addTo(map);
+        }
+
+        function escapeHtml(str) {
+            return String(str ?? "")
+                .replaceAll("&", "&amp;")
+                .replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;")
+                .replaceAll('"', "&quot;")
+                .replaceAll("'", "&#39;");
+        }
+
+        // Called by WinForms to fix WebView2 sizing after modal opens
+        window.invalidateMap = function () {
+            if (!map) return;
+            setTimeout(() => map.invalidateSize(true), 150);
+        };
+
+        // Called by WinForms: window.renderBoardingHouse({...})
+        window.renderBoardingHouse = function (bh) {
+            try {
+                ensureMap();
+                if (!map) return;
+
+                if (!bh || typeof bh.latitude !== "number" || typeof bh.longitude !== "number") {
+                    statusEl.textContent = "Invalid boarding house coordinates.";
+                    console.error("Invalid bh payload:", bh);
+                    return;
+                }
+
+                const lat = bh.latitude;
+                const lng = bh.longitude;
+
+                // Center + zoom
+                map.setView([lat, lng], 16);
+
+                // Create or move marker
+                if (!marker) {
+                    marker = L.marker([lat, lng]).addTo(map);
+                } else {
+                    marker.setLatLng([lat, lng]);
+                }
+
+                const name = escapeHtml(bh.name);
+                const address = escapeHtml(bh.address);
+                const status = escapeHtml(bh.status);
+                const contact = escapeHtml(bh.contactNo || bh.contact_no || "");
+
+                // Popup content
+                let html = `<div style="font-family:Segoe UI, Arial; font-size:12px; line-height:1.4;">
+                        <div style="font-weight:600; font-size:13px;">${name || "Boarding House"}</div>
+                        ${status ? `<div><b>Status:</b> ${status}</div>` : ""}
+                        ${address ? `<div><b>Address:</b> ${address}</div>` : ""}
+                        ${contact ? `<div><b>Contact:</b> ${contact}</div>` : ""}
+                        <div><b>Lat:</b> ${Number(lat).toFixed(6)}</div>
+                        <div><b>Lng:</b> ${Number(lng).toFixed(6)}</div>
+                    </div>`;
+
+                marker.bindPopup(html).openPopup();
+
+                statusEl.textContent =
+                    `Showing:\n${bh.name || "Boarding House"}\nLat: ${Number(lat).toFixed(6)}\nLng: ${Number(lng).toFixed(6)}`;
+
+                // Resize safety (sometimes WebView2 opens modal with wrong size)
+                window.invalidateMap();
+            } catch (e) {
+                console.error("renderBoardingHouse failed:", e);
+                statusEl.textContent = "Failed to render boarding house.";
+            }
+        };
+
+        document.addEventListener("DOMContentLoaded", () => {
+            ensureMap();
+        });
+    </script>
+</body>
+</html>
