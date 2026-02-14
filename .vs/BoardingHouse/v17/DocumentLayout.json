@@ -3,32 +3,28 @@
   "WorkspaceRootPath": "C:\\Users\\Maki Liones\\source\\repos\\BoardingHouse\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{1786FCDF-F6C2-4D1B-8DC2-A925FE7F6D5F}|BoardingHouse\\BoardingHouse.csproj|c:\\users\\maki liones\\source\\repos\\boardinghouse\\boardinghouse\\paymentsview.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form",
-      "RelativeMoniker": "D:0:0:{1786FCDF-F6C2-4D1B-8DC2-A925FE7F6D5F}|BoardingHouse\\BoardingHouse.csproj|solutionrelative:boardinghouse\\paymentsview.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form"
+      "AbsoluteMoniker": "D:0:0:{1786FCDF-F6C2-4D1B-8DC2-A925FE7F6D5F}|BoardingHouse\\BoardingHouse.csproj|c:\\users\\maki liones\\source\\repos\\boardinghouse\\boardinghouse\\reservationsview.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{1786FCDF-F6C2-4D1B-8DC2-A925FE7F6D5F}|BoardingHouse\\BoardingHouse.csproj|solutionrelative:boardinghouse\\reservationsview.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{1786FCDF-F6C2-4D1B-8DC2-A925FE7F6D5F}|BoardingHouse\\BoardingHouse.csproj|c:\\users\\maki liones\\source\\repos\\boardinghouse\\boardinghouse\\roomsview.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{1786FCDF-F6C2-4D1B-8DC2-A925FE7F6D5F}|BoardingHouse\\BoardingHouse.csproj|solutionrelative:boardinghouse\\roomsview.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{1786FCDF-F6C2-4D1B-8DC2-A925FE7F6D5F}|BoardingHouse\\BoardingHouse.csproj|c:\\users\\maki liones\\source\\repos\\boardinghouse\\boardinghouse\\reservationsview.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form",
+      "RelativeMoniker": "D:0:0:{1786FCDF-F6C2-4D1B-8DC2-A925FE7F6D5F}|BoardingHouse\\BoardingHouse.csproj|solutionrelative:boardinghouse\\reservationsview.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{1786FCDF-F6C2-4D1B-8DC2-A925FE7F6D5F}|BoardingHouse\\BoardingHouse.csproj|c:\\users\\maki liones\\source\\repos\\boardinghouse\\boardinghouse\\roomsview.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form",
-      "RelativeMoniker": "D:0:0:{1786FCDF-F6C2-4D1B-8DC2-A925FE7F6D5F}|BoardingHouse\\BoardingHouse.csproj|solutionrelative:boardinghouse\\roomsview.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form"
+      "AbsoluteMoniker": "D:0:0:{1786FCDF-F6C2-4D1B-8DC2-A925FE7F6D5F}|BoardingHouse\\BoardingHouse.csproj|c:\\users\\maki liones\\source\\repos\\boardinghouse\\boardinghouse\\appconfig.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{1786FCDF-F6C2-4D1B-8DC2-A925FE7F6D5F}|BoardingHouse\\BoardingHouse.csproj|solutionrelative:boardinghouse\\appconfig.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{1786FCDF-F6C2-4D1B-8DC2-A925FE7F6D5F}|BoardingHouse\\BoardingHouse.csproj|c:\\users\\maki liones\\source\\repos\\boardinghouse\\boardinghouse\\paymentsview.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{1786FCDF-F6C2-4D1B-8DC2-A925FE7F6D5F}|BoardingHouse\\BoardingHouse.csproj|solutionrelative:boardinghouse\\paymentsview.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{1786FCDF-F6C2-4D1B-8DC2-A925FE7F6D5F}|BoardingHouse\\BoardingHouse.csproj|c:\\users\\maki liones\\source\\repos\\boardinghouse\\boardinghouse\\dbconnectionfactory.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{1786FCDF-F6C2-4D1B-8DC2-A925FE7F6D5F}|BoardingHouse\\BoardingHouse.csproj|solutionrelative:boardinghouse\\dbconnectionfactory.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{1786FCDF-F6C2-4D1B-8DC2-A925FE7F6D5F}|BoardingHouse\\BoardingHouse.csproj|c:\\users\\maki liones\\source\\repos\\boardinghouse\\boardinghouse\\soundclicked.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{1786FCDF-F6C2-4D1B-8DC2-A925FE7F6D5F}|BoardingHouse\\BoardingHouse.csproj|solutionrelative:boardinghouse\\soundclicked.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{1786FCDF-F6C2-4D1B-8DC2-A925FE7F6D5F}|BoardingHouse\\BoardingHouse.csproj|c:\\users\\maki liones\\source\\repos\\boardinghouse\\boardinghouse\\reservationsview.designer.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{1786FCDF-F6C2-4D1B-8DC2-A925FE7F6D5F}|BoardingHouse\\BoardingHouse.csproj|solutionrelative:boardinghouse\\reservationsview.designer.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{1786FCDF-F6C2-4D1B-8DC2-A925FE7F6D5F}|BoardingHouse\\BoardingHouse.csproj|c:\\users\\maki liones\\source\\repos\\boardinghouse\\boardinghouse\\mainlayout.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{1786FCDF-F6C2-4D1B-8DC2-A925FE7F6D5F}|BoardingHouse\\BoardingHouse.csproj|solutionrelative:boardinghouse\\mainlayout.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{1786FCDF-F6C2-4D1B-8DC2-A925FE7F6D5F}|BoardingHouse\\BoardingHouse.csproj|C:\\Users\\Maki Liones\\source\\repos\\BoardingHouse\\boardinghouse\\mainlayout.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form",
-      "RelativeMoniker": "D:0:0:{1786FCDF-F6C2-4D1B-8DC2-A925FE7F6D5F}|BoardingHouse\\BoardingHouse.csproj|solutionrelative:boardinghouse\\mainlayout.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form"
+      "AbsoluteMoniker": "D:0:0:{1786FCDF-F6C2-4D1B-8DC2-A925FE7F6D5F}|BoardingHouse\\BoardingHouse.csproj|c:\\users\\maki liones\\source\\repos\\boardinghouse\\boardinghouse\\studentsview.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form",
+      "RelativeMoniker": "D:0:0:{1786FCDF-F6C2-4D1B-8DC2-A925FE7F6D5F}|BoardingHouse\\BoardingHouse.csproj|solutionrelative:boardinghouse\\studentsview.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form"
     }
   ],
   "DocumentGroupContainers": [
@@ -43,89 +39,77 @@
             {
               "$type": "Document",
               "DocumentIndex": 2,
-              "Title": "RoomsView.cs [Design]",
-              "DocumentMoniker": "C:\\Users\\Maki Liones\\source\\repos\\BoardingHouse\\BoardingHouse\\RoomsView.cs",
-              "RelativeDocumentMoniker": "BoardingHouse\\RoomsView.cs",
-              "ToolTip": "C:\\Users\\Maki Liones\\source\\repos\\BoardingHouse\\BoardingHouse\\RoomsView.cs [Design]",
-              "RelativeToolTip": "BoardingHouse\\RoomsView.cs [Design]",
+              "Title": "AppConfig.cs",
+              "DocumentMoniker": "C:\\Users\\Maki Liones\\source\\repos\\BoardingHouse\\BoardingHouse\\AppConfig.cs",
+              "RelativeDocumentMoniker": "BoardingHouse\\AppConfig.cs",
+              "ToolTip": "C:\\Users\\Maki Liones\\source\\repos\\BoardingHouse\\BoardingHouse\\AppConfig.cs",
+              "RelativeToolTip": "BoardingHouse\\AppConfig.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAcAAAAwAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-02-06T12:12:27.008Z",
-              "EditorCaption": " [Design]"
+              "WhenOpened": "2026-02-14T13:35:05.934Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
               "DocumentIndex": 3,
-              "Title": "PaymentsView.cs",
-              "DocumentMoniker": "C:\\Users\\Maki Liones\\source\\repos\\BoardingHouse\\BoardingHouse\\PaymentsView.cs",
-              "RelativeDocumentMoniker": "BoardingHouse\\PaymentsView.cs",
-              "ToolTip": "C:\\Users\\Maki Liones\\source\\repos\\BoardingHouse\\BoardingHouse\\PaymentsView.cs",
-              "RelativeToolTip": "BoardingHouse\\PaymentsView.cs",
-              "ViewState": "AgIAAOICAAAAAAAAAAAswPYCAAAaAAAAAAAAAA==",
+              "Title": "DbConnectionFactory.cs",
+              "DocumentMoniker": "C:\\Users\\Maki Liones\\source\\repos\\BoardingHouse\\BoardingHouse\\DbConnectionFactory.cs",
+              "RelativeDocumentMoniker": "BoardingHouse\\DbConnectionFactory.cs",
+              "ToolTip": "C:\\Users\\Maki Liones\\source\\repos\\BoardingHouse\\BoardingHouse\\DbConnectionFactory.cs",
+              "RelativeToolTip": "BoardingHouse\\DbConnectionFactory.cs",
+              "ViewState": "AgIAAAMAAAAAAAAAAAAUwA0AAAANAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-02-06T12:03:53.168Z",
+              "WhenOpened": "2026-02-14T13:34:49.104Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
               "DocumentIndex": 0,
-              "Title": "PaymentsView.cs [Design]",
-              "DocumentMoniker": "C:\\Users\\Maki Liones\\source\\repos\\BoardingHouse\\BoardingHouse\\PaymentsView.cs",
-              "RelativeDocumentMoniker": "BoardingHouse\\PaymentsView.cs",
-              "ToolTip": "C:\\Users\\Maki Liones\\source\\repos\\BoardingHouse\\BoardingHouse\\PaymentsView.cs [Design]",
-              "RelativeToolTip": "BoardingHouse\\PaymentsView.cs [Design]",
+              "Title": "ReservationsView.cs",
+              "DocumentMoniker": "C:\\Users\\Maki Liones\\source\\repos\\BoardingHouse\\BoardingHouse\\ReservationsView.cs",
+              "RelativeDocumentMoniker": "BoardingHouse\\ReservationsView.cs",
+              "ToolTip": "C:\\Users\\Maki Liones\\source\\repos\\BoardingHouse\\BoardingHouse\\ReservationsView.cs",
+              "RelativeToolTip": "BoardingHouse\\ReservationsView.cs",
+              "ViewState": "AgIAAB8AAAAAAAAAAAAwwDYAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-02-06T12:00:42.497Z",
-              "EditorCaption": " [Design]"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 1,
-              "Title": "RoomsView.cs",
-              "DocumentMoniker": "C:\\Users\\Maki Liones\\source\\repos\\BoardingHouse\\BoardingHouse\\RoomsView.cs",
-              "RelativeDocumentMoniker": "BoardingHouse\\RoomsView.cs",
-              "ToolTip": "C:\\Users\\Maki Liones\\source\\repos\\BoardingHouse\\BoardingHouse\\RoomsView.cs",
-              "RelativeToolTip": "BoardingHouse\\RoomsView.cs",
-              "ViewState": "AgIAAAAEAAAAAAAAAAAAAAwEAABIAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-02-06T11:52:44.659Z",
+              "WhenOpened": "2026-02-14T13:23:52.207Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 4,
-              "Title": "SoundClicked.cs",
-              "DocumentMoniker": "C:\\Users\\Maki Liones\\source\\repos\\BoardingHouse\\BoardingHouse\\SoundClicked.cs",
-              "RelativeDocumentMoniker": "BoardingHouse\\SoundClicked.cs",
-              "ToolTip": "C:\\Users\\Maki Liones\\source\\repos\\BoardingHouse\\BoardingHouse\\SoundClicked.cs",
-              "RelativeToolTip": "BoardingHouse\\SoundClicked.cs",
-              "ViewState": "AgIAABYAAAAAAAAAAAAkwCYAAAAhAAAAAAAAAA==",
+              "DocumentIndex": 1,
+              "Title": "ReservationsView.cs [Design]",
+              "DocumentMoniker": "C:\\Users\\Maki Liones\\source\\repos\\BoardingHouse\\BoardingHouse\\ReservationsView.cs",
+              "RelativeDocumentMoniker": "BoardingHouse\\ReservationsView.cs",
+              "ToolTip": "C:\\Users\\Maki Liones\\source\\repos\\BoardingHouse\\BoardingHouse\\ReservationsView.cs [Design]",
+              "RelativeToolTip": "BoardingHouse\\ReservationsView.cs [Design]",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-02-06T11:10:18.884Z",
+              "WhenOpened": "2026-02-14T13:23:48.149Z",
+              "EditorCaption": " [Design]"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "ReservationsView.Designer.cs",
+              "DocumentMoniker": "C:\\Users\\Maki Liones\\source\\repos\\BoardingHouse\\BoardingHouse\\ReservationsView.Designer.cs",
+              "RelativeDocumentMoniker": "BoardingHouse\\ReservationsView.Designer.cs",
+              "ToolTip": "C:\\Users\\Maki Liones\\source\\repos\\BoardingHouse\\BoardingHouse\\ReservationsView.Designer.cs",
+              "RelativeToolTip": "BoardingHouse\\ReservationsView.Designer.cs",
+              "ViewState": "AgIAANQDAAAAAAAAAAAiwN4DAAAgAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-02-14T13:22:21.083Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
               "DocumentIndex": 5,
-              "Title": "MainLayout.cs",
-              "DocumentMoniker": "C:\\Users\\Maki Liones\\source\\repos\\BoardingHouse\\BoardingHouse\\MainLayout.cs",
-              "RelativeDocumentMoniker": "BoardingHouse\\MainLayout.cs",
-              "ToolTip": "C:\\Users\\Maki Liones\\source\\repos\\BoardingHouse\\BoardingHouse\\MainLayout.cs",
-              "RelativeToolTip": "BoardingHouse\\MainLayout.cs",
-              "ViewState": "AgIAACQBAAAAAAAAAAAAADUBAAAMAAAAAAAAAA==",
+              "Title": "StudentsView.cs [Design]",
+              "DocumentMoniker": "C:\\Users\\Maki Liones\\source\\repos\\BoardingHouse\\BoardingHouse\\StudentsView.cs",
+              "RelativeDocumentMoniker": "BoardingHouse\\StudentsView.cs",
+              "ToolTip": "C:\\Users\\Maki Liones\\source\\repos\\BoardingHouse\\BoardingHouse\\StudentsView.cs [Design]",
+              "RelativeToolTip": "BoardingHouse\\StudentsView.cs [Design]",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-02-06T06:42:27.37Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 6,
-              "Title": "MainLayout.cs [Design]",
-              "DocumentMoniker": "C:\\Users\\Maki Liones\\source\\repos\\BoardingHouse\\BoardingHouse\\MainLayout.cs",
-              "RelativeDocumentMoniker": "BoardingHouse\\MainLayout.cs",
-              "ToolTip": "C:\\Users\\Maki Liones\\source\\repos\\BoardingHouse\\BoardingHouse\\MainLayout.cs [Design]",
-              "RelativeToolTip": "BoardingHouse\\MainLayout.cs [Design]",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-02-06T06:42:05.547Z",
+              "WhenOpened": "2026-02-14T12:40:50.926Z",
               "EditorCaption": " [Design]"
             }
           ]

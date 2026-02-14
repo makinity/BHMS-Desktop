@@ -1,8 +1,14 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
+    <Compile Update="BHOwnersView.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
     <Compile Update="BoardingHousesView.cs">
       <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="CameraCaptureForm.cs">
+      <SubType>Form</SubType>
     </Compile>
     <Compile Update="DashboardView.cs">
       <SubType>UserControl</SubType>
@@ -22,7 +28,13 @@
     <Compile Update="ReportsView.cs">
       <SubType>UserControl</SubType>
     </Compile>
+    <Compile Update="ReservationsView.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
     <Compile Update="RoomsView.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="StudentsView.cs">
       <SubType>UserControl</SubType>
     </Compile>
     <Compile Update="TenantsView.cs">

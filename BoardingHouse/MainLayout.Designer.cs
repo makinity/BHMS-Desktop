@@ -15,9 +15,12 @@ namespace BoardingHouse
         private Button btnDashboard;
         private Button btnBoardingHouses;
         private Button btnTenants;
+        private Button btnStudents;
         private Button btnRooms;
+        private Button btnReservations;
         private Button btnPayments;
         private Button btnReports;
+        private Button btnBHOwners;
 
         protected override void Dispose(bool disposing)
         {
@@ -32,23 +35,37 @@ namespace BoardingHouse
         {
             ComponentResourceManager resources = new ComponentResourceManager(typeof(MainLayout));
             topPanel = new Panel();
+            label2 = new Label();
+            profileImg = new PictureBox();
+            label1 = new Label();
             panel1 = new Panel();
             pictureBox1 = new PictureBox();
+            dropDownPanel = new Panel();
+            closeDPPanelBtn = new Button();
+            logoutBtn = new Button();
+            settingsBtn = new Button();
+            profileBtn = new Button();
             bodyPanel = new Panel();
             contentPanel = new Panel();
             sidebarPanel = new Panel();
             buttonsPanel = new Panel();
             btnReports = new Button();
             btnPayments = new Button();
+            btnReservations = new Button();
             btnRooms = new Button();
             btnTenants = new Button();
             btnBoardingHouses = new Button();
+            btnBHOwners = new Button();
             btnDashboard = new Button();
             activeIndicator = new Panel();
+            btnStudents = new Button();
             topPanel.SuspendLayout();
+            ((ISupportInitialize)profileImg).BeginInit();
             panel1.SuspendLayout();
             ((ISupportInitialize)pictureBox1).BeginInit();
+            dropDownPanel.SuspendLayout();
             bodyPanel.SuspendLayout();
+            contentPanel.SuspendLayout();
             sidebarPanel.SuspendLayout();
             buttonsPanel.SuspendLayout();
             SuspendLayout();
@@ -56,12 +73,51 @@ namespace BoardingHouse
             // topPanel
             // 
             topPanel.BackColor = Color.FromArgb(48, 54, 92);
+            topPanel.Controls.Add(dropDownPanel);
+            topPanel.Controls.Add(label2);
+            topPanel.Controls.Add(profileImg);
+            topPanel.Controls.Add(label1);
             topPanel.Controls.Add(panel1);
             topPanel.Dock = DockStyle.Top;
             topPanel.Location = new Point(0, 0);
             topPanel.Name = "topPanel";
             topPanel.Size = new Size(1280, 90);
             topPanel.TabIndex = 1;
+            // 
+            // label2
+            // 
+            label2.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            label2.AutoSize = true;
+            label2.Font = new Font("Segoe UI Semibold", 12F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            label2.ForeColor = SystemColors.ButtonHighlight;
+            label2.Location = new Point(1109, 23);
+            label2.Name = "label2";
+            label2.Size = new Size(72, 28);
+            label2.TabIndex = 3;
+            label2.Text = "Admin";
+            // 
+            // profileImg
+            // 
+            profileImg.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            profileImg.Image = (Image)resources.GetObject("profileImg.Image");
+            profileImg.Location = new Point(1187, 3);
+            profileImg.Name = "profileImg";
+            profileImg.Size = new Size(90, 82);
+            profileImg.SizeMode = PictureBoxSizeMode.StretchImage;
+            profileImg.TabIndex = 2;
+            profileImg.TabStop = false;
+            profileImg.Click += profileImg_Click;
+            // 
+            // label1
+            // 
+            label1.AutoSize = true;
+            label1.Font = new Font("Segoe UI", 22.2F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            label1.ForeColor = SystemColors.ButtonHighlight;
+            label1.Location = new Point(274, 23);
+            label1.Name = "label1";
+            label1.Size = new Size(264, 50);
+            label1.TabIndex = 1;
+            label1.Text = "BHMS System";
             // 
             // panel1
             // 
@@ -82,6 +138,67 @@ namespace BoardingHouse
             pictureBox1.SizeMode = PictureBoxSizeMode.StretchImage;
             pictureBox1.TabIndex = 0;
             pictureBox1.TabStop = false;
+            // 
+            // dropDownPanel
+            // 
+            dropDownPanel.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            dropDownPanel.BackColor = Color.FromArgb(41, 42, 70);
+            dropDownPanel.Controls.Add(closeDPPanelBtn);
+            dropDownPanel.Controls.Add(logoutBtn);
+            dropDownPanel.Controls.Add(settingsBtn);
+            dropDownPanel.Controls.Add(profileBtn);
+            dropDownPanel.Location = new Point(606, 30);
+            dropDownPanel.Name = "dropDownPanel";
+            dropDownPanel.Size = new Size(164, 192);
+            dropDownPanel.TabIndex = 0;
+            dropDownPanel.Visible = false;
+            // 
+            // closeDPPanelBtn
+            // 
+            closeDPPanelBtn.BackColor = Color.FromArgb(255, 192, 192);
+            closeDPPanelBtn.Location = new Point(137, 3);
+            closeDPPanelBtn.Name = "closeDPPanelBtn";
+            closeDPPanelBtn.Size = new Size(24, 25);
+            closeDPPanelBtn.TabIndex = 4;
+            closeDPPanelBtn.Text = "X";
+            closeDPPanelBtn.UseVisualStyleBackColor = false;
+            closeDPPanelBtn.Click += closeDPPanelBtn_Click;
+            // 
+            // logoutBtn
+            // 
+            logoutBtn.BackColor = Color.LightCyan;
+            logoutBtn.FlatStyle = FlatStyle.Flat;
+            logoutBtn.Location = new Point(3, 137);
+            logoutBtn.Name = "logoutBtn";
+            logoutBtn.Size = new Size(158, 45);
+            logoutBtn.TabIndex = 2;
+            logoutBtn.Text = "Logout";
+            logoutBtn.UseVisualStyleBackColor = false;
+            logoutBtn.Click += button2_Click;
+            // 
+            // settingsBtn
+            // 
+            settingsBtn.BackColor = Color.LightCyan;
+            settingsBtn.FlatStyle = FlatStyle.Flat;
+            settingsBtn.Location = new Point(3, 86);
+            settingsBtn.Name = "settingsBtn";
+            settingsBtn.Size = new Size(158, 45);
+            settingsBtn.TabIndex = 1;
+            settingsBtn.Text = "Settings";
+            settingsBtn.UseVisualStyleBackColor = false;
+            settingsBtn.Click += settingsBtn_Click;
+            // 
+            // profileBtn
+            // 
+            profileBtn.BackColor = Color.LightCyan;
+            profileBtn.FlatStyle = FlatStyle.Flat;
+            profileBtn.Location = new Point(3, 35);
+            profileBtn.Name = "profileBtn";
+            profileBtn.Size = new Size(158, 45);
+            profileBtn.TabIndex = 0;
+            profileBtn.Text = "Profile";
+            profileBtn.UseVisualStyleBackColor = false;
+            profileBtn.Click += profileBtn_Click;
             // 
             // bodyPanel
             // 
@@ -115,9 +232,11 @@ namespace BoardingHouse
             // 
             buttonsPanel.Controls.Add(btnReports);
             buttonsPanel.Controls.Add(btnPayments);
+            buttonsPanel.Controls.Add(btnReservations);
             buttonsPanel.Controls.Add(btnRooms);
             buttonsPanel.Controls.Add(btnTenants);
             buttonsPanel.Controls.Add(btnBoardingHouses);
+            buttonsPanel.Controls.Add(btnBHOwners);
             buttonsPanel.Controls.Add(btnDashboard);
             buttonsPanel.Controls.Add(activeIndicator);
             buttonsPanel.Dock = DockStyle.Fill;
@@ -133,7 +252,7 @@ namespace BoardingHouse
             btnReports.FlatAppearance.BorderSize = 0;
             btnReports.FlatStyle = FlatStyle.Flat;
             btnReports.ForeColor = Color.White;
-            btnReports.Location = new Point(0, 370);
+            btnReports.Location = new Point(0, 444);
             btnReports.Name = "btnReports";
             btnReports.Padding = new Padding(16, 0, 0, 0);
             btnReports.Size = new Size(250, 74);
@@ -150,7 +269,7 @@ namespace BoardingHouse
             btnPayments.FlatAppearance.BorderSize = 0;
             btnPayments.FlatStyle = FlatStyle.Flat;
             btnPayments.ForeColor = Color.White;
-            btnPayments.Location = new Point(0, 296);
+            btnPayments.Location = new Point(0, 370);
             btnPayments.Name = "btnPayments";
             btnPayments.Padding = new Padding(16, 0, 0, 0);
             btnPayments.Size = new Size(250, 74);
@@ -160,6 +279,23 @@ namespace BoardingHouse
             btnPayments.UseVisualStyleBackColor = false;
             btnPayments.Click += PaymentsButton_Click;
             // 
+            // btnReservations
+            // 
+            btnReservations.BackColor = Color.FromArgb(41, 42, 70);
+            btnReservations.Dock = DockStyle.Top;
+            btnReservations.FlatAppearance.BorderSize = 0;
+            btnReservations.FlatStyle = FlatStyle.Flat;
+            btnReservations.ForeColor = Color.White;
+            btnReservations.Location = new Point(0, 370);
+            btnReservations.Name = "btnReservations";
+            btnReservations.Padding = new Padding(16, 0, 0, 0);
+            btnReservations.Size = new Size(250, 74);
+            btnReservations.TabIndex = 1;
+            btnReservations.Text = "Reservations";
+            btnReservations.TextAlign = ContentAlignment.MiddleLeft;
+            btnReservations.UseVisualStyleBackColor = false;
+            btnReservations.Click += btnReservations_Click;
+            // 
             // btnRooms
             // 
             btnRooms.BackColor = Color.FromArgb(41, 42, 70);
@@ -167,7 +303,7 @@ namespace BoardingHouse
             btnRooms.FlatAppearance.BorderSize = 0;
             btnRooms.FlatStyle = FlatStyle.Flat;
             btnRooms.ForeColor = Color.White;
-            btnRooms.Location = new Point(0, 222);
+            btnRooms.Location = new Point(0, 296);
             btnRooms.Name = "btnRooms";
             btnRooms.Padding = new Padding(16, 0, 0, 0);
             btnRooms.Size = new Size(250, 74);
@@ -184,7 +320,7 @@ namespace BoardingHouse
             btnTenants.FlatAppearance.BorderSize = 0;
             btnTenants.FlatStyle = FlatStyle.Flat;
             btnTenants.ForeColor = Color.White;
-            btnTenants.Location = new Point(0, 148);
+            btnTenants.Location = new Point(0, 222);
             btnTenants.Name = "btnTenants";
             btnTenants.Padding = new Padding(16, 0, 0, 0);
             btnTenants.Size = new Size(250, 74);
@@ -201,15 +337,32 @@ namespace BoardingHouse
             btnBoardingHouses.FlatAppearance.BorderSize = 0;
             btnBoardingHouses.FlatStyle = FlatStyle.Flat;
             btnBoardingHouses.ForeColor = Color.White;
-            btnBoardingHouses.Location = new Point(0, 74);
+            btnBoardingHouses.Location = new Point(0, 148);
             btnBoardingHouses.Name = "btnBoardingHouses";
             btnBoardingHouses.Padding = new Padding(16, 0, 0, 0);
             btnBoardingHouses.Size = new Size(250, 74);
-            btnBoardingHouses.TabIndex = 4;
+            btnBoardingHouses.TabIndex = 5;
             btnBoardingHouses.Text = "Boarding Houses";
             btnBoardingHouses.TextAlign = ContentAlignment.MiddleLeft;
             btnBoardingHouses.UseVisualStyleBackColor = false;
             btnBoardingHouses.Click += BoardingHousesButton_Click;
+            // 
+            // btnBHOwners
+            // 
+            btnBHOwners.BackColor = Color.FromArgb(41, 42, 70);
+            btnBHOwners.Dock = DockStyle.Top;
+            btnBHOwners.FlatAppearance.BorderSize = 0;
+            btnBHOwners.FlatStyle = FlatStyle.Flat;
+            btnBHOwners.ForeColor = Color.White;
+            btnBHOwners.Location = new Point(0, 74);
+            btnBHOwners.Name = "btnBHOwners";
+            btnBHOwners.Padding = new Padding(16, 0, 0, 0);
+            btnBHOwners.Size = new Size(250, 74);
+            btnBHOwners.TabIndex = 6;
+            btnBHOwners.Text = "BH Owners";
+            btnBHOwners.TextAlign = ContentAlignment.MiddleLeft;
+            btnBHOwners.UseVisualStyleBackColor = false;
+            btnBHOwners.Click += btnBHOwners_Click;
             // 
             // btnDashboard
             // 
@@ -222,7 +375,7 @@ namespace BoardingHouse
             btnDashboard.Name = "btnDashboard";
             btnDashboard.Padding = new Padding(16, 0, 0, 0);
             btnDashboard.Size = new Size(250, 74);
-            btnDashboard.TabIndex = 5;
+            btnDashboard.TabIndex = 7;
             btnDashboard.Text = "Dashboard";
             btnDashboard.TextAlign = ContentAlignment.MiddleLeft;
             btnDashboard.UseVisualStyleBackColor = false;
@@ -237,6 +390,23 @@ namespace BoardingHouse
             activeIndicator.TabIndex = 6;
             activeIndicator.Visible = false;
             // 
+            // btnStudents
+            // 
+            btnStudents.BackColor = Color.FromArgb(41, 42, 70);
+            btnStudents.Dock = DockStyle.Top;
+            btnStudents.FlatAppearance.BorderSize = 0;
+            btnStudents.FlatStyle = FlatStyle.Flat;
+            btnStudents.ForeColor = Color.White;
+            btnStudents.Location = new Point(0, 222);
+            btnStudents.Name = "btnStudents";
+            btnStudents.Padding = new Padding(16, 0, 0, 0);
+            btnStudents.Size = new Size(250, 74);
+            btnStudents.TabIndex = 4;
+            btnStudents.Text = "Students";
+            btnStudents.TextAlign = ContentAlignment.MiddleLeft;
+            btnStudents.UseVisualStyleBackColor = false;
+            btnStudents.Click += btnStudents_Click;
+            // 
             // MainLayout
             // 
             AutoScaleDimensions = new SizeF(8F, 20F);
@@ -249,9 +419,13 @@ namespace BoardingHouse
             Text = "Boarding House";
             Load += MainLayout_Load;
             topPanel.ResumeLayout(false);
+            topPanel.PerformLayout();
+            ((ISupportInitialize)profileImg).EndInit();
             panel1.ResumeLayout(false);
             ((ISupportInitialize)pictureBox1).EndInit();
+            dropDownPanel.ResumeLayout(false);
             bodyPanel.ResumeLayout(false);
+            contentPanel.ResumeLayout(false);
             sidebarPanel.ResumeLayout(false);
             buttonsPanel.ResumeLayout(false);
             ResumeLayout(false);
@@ -259,5 +433,13 @@ namespace BoardingHouse
         private Panel panel1;
         private PictureBox pictureBox1;
         private Panel contentPanel;
+        private Label label1;
+        private PictureBox profileImg;
+        private Panel dropDownPanel;
+        private Button logoutBtn;
+        private Button settingsBtn;
+        private Button profileBtn;
+        private Label label2;
+        private Button closeDPPanelBtn;
     }
 }

@@ -56,6 +56,7 @@
             // 
             label1.AutoSize = true;
             label1.Font = new Font("Segoe UI", 19.8000011F, FontStyle.Bold | FontStyle.Italic);
+            label1.ForeColor = SystemColors.ButtonHighlight;
             label1.Location = new Point(41, 63);
             label1.Name = "label1";
             label1.Size = new Size(494, 46);
@@ -86,6 +87,7 @@
             // 
             label2.AutoSize = true;
             label2.Font = new Font("Segoe UI Semibold", 12F, FontStyle.Bold);
+            label2.ForeColor = SystemColors.ButtonHighlight;
             label2.Location = new Point(135, 333);
             label2.Name = "label2";
             label2.Size = new Size(115, 28);
@@ -96,6 +98,7 @@
             // 
             label3.AutoSize = true;
             label3.Font = new Font("Segoe UI Semibold", 12F, FontStyle.Bold);
+            label3.ForeColor = SystemColors.ButtonHighlight;
             label3.Location = new Point(135, 439);
             label3.Name = "label3";
             label3.Size = new Size(108, 28);
@@ -108,6 +111,7 @@
             passwordtxt.Location = new Point(135, 470);
             passwordtxt.Multiline = true;
             passwordtxt.Name = "passwordtxt";
+            passwordtxt.PasswordChar = '*';
             passwordtxt.PlaceholderText = "Enter Password";
             passwordtxt.Size = new Size(285, 44);
             passwordtxt.TabIndex = 6;
@@ -129,7 +133,7 @@
             // 
             AutoScaleDimensions = new SizeF(8F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
-            BackColor = Color.FromArgb(128, 128, 255);
+            BackColor = Color.FromArgb(41, 42, 70);
             ClientSize = new Size(579, 730);
             Controls.Add(LoginBtn);
             Controls.Add(label3);

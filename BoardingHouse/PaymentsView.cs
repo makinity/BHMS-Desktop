@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Globalization;
+using System.Linq;
 using System.Text;
 using System.Windows.Forms;
 using MySql.Data.MySqlClient;
@@ -13,6 +15,10 @@ namespace BoardingHouse
     {
         private int? _selectedRentalId = null;
         private int? _selectedPaymentId = null;
+        private int? _currentRentalId = null;
+        private DateTime _currentBillMonth = DateTime.MinValue;
+        private int? _selectedBillingItemId = null;
+        public int CurrentUserId { get; set; }
 
         private string _receiptToPrint = "";
         private int _printLineIndex = 0;
@@ -21,9 +27,11 @@ namespace BoardingHouse
         public PaymentsView()
         {
             InitializeComponent();
+            SetupChargeListView();
 
             if (cbSearchBy.Items.Count > 0 && cbSearchBy.SelectedIndex < 0) cbSearchBy.SelectedIndex = 0;
             if (cbPaymentMethod.Items.Count > 0 && cbPaymentMethod.SelectedIndex < 0) cbPaymentMethod.SelectedIndex = 0;
+            if (cbChargeType.Items.Count > 0 && cbChargeType.SelectedIndex < 0) cbChargeType.SelectedIndex = 0;
 
             if (dpBilling_Month != null)
             {
@@ -44,7 +52,11 @@ namespace BoardingHouse
 
         private DateTime GetSelectedBillMonth()
         {
-            var dt = dpBilling_Month.Value;
+            return NormalizeBillMonth(dpBilling_Month.Value);
+        }
+
+        private DateTime NormalizeBillMonth(DateTime dt)
+        {
             return new DateTime(dt.Year, dt.Month, 1);
         }
 
@@ -93,6 +105,21 @@ namespace BoardingHouse
                 txtRoomName.Text = "(Room)";
                 txtBoardingHouseName.Text = "(Boardinghouse)";
                 ClearRightSide();
+            }
+        }
+
+        private void SetupChargeListView()
+        {
+            lvChargeList.View = View.Details;
+            lvChargeList.FullRowSelect = true;
+            lvChargeList.GridLines = true;
+            lvChargeList.MultiSelect = false;
+            if (lvChargeList.Columns.Count == 0)
+            {
+                lvChargeList.Columns.Add("Charge Type", 95);
+                lvChargeList.Columns.Add("Description", 200);
+                lvChargeList.Columns.Add("Amount", 80);
+                lvChargeList.Columns.Add("Status", 90);
             }
         }
 
@@ -183,7 +210,7 @@ namespace BoardingHouse
             var searchBy = cbSearchBy.SelectedItem?.ToString() ?? "Tenant Name";
 
             var where = new StringBuilder();
-            where.Append(" WHERE r.status='ACTIVE' AND bh.id=@bhId ");
+            where.Append(" WHERE r.status='ACTIVE' AND (r.end_date IS NULL OR r.end_date >= CURDATE()) AND bh.id=@bhId ");
 
             if (!string.IsNullOrWhiteSpace(q))
             {
@@ -193,11 +220,11 @@ namespace BoardingHouse
                 }
                 else if (searchBy == "Contact No")
                 {
-                    where.Append(" AND t.contact_no LIKE @q ");
+                    where.Append(" AND o.contact_no LIKE @q ");
                 }
                 else // Tenant Name
                 {
-                    where.Append(" AND (t.full_name LIKE @q OR t.firstname LIKE @q OR t.lastname LIKE @q) ");
+                    where.Append(" AND (o.full_name LIKE @q OR o.firstname LIKE @q OR o.lastname LIKE @q) ");
                 }
             }
 
@@ -205,18 +232,21 @@ namespace BoardingHouse
             using var cmd = new MySqlCommand($@"
                 SELECT
                     r.id AS RentalId,
-                    t.id AS TenantId,
-                    t.full_name AS Tenant,
-                    t.contact_no AS ContactNo,
+                    o.id AS OccupantId,
+                    COALESCE(NULLIF(TRIM(o.full_name),''), TRIM(CONCAT(
+                        COALESCE(o.lastname,''), ', ', COALESCE(o.firstname,''),
+                        CASE WHEN o.middlename IS NULL OR o.middlename='' THEN '' ELSE CONCAT(' ', o.middlename) END
+                    ))) AS Tenant,
+                    o.contact_no AS ContactNo,
                     rm.room_no AS Room,
                     rm.room_type AS RoomType,
                     r.monthly_rate AS MonthlyRate
                 FROM rentals r
-                INNER JOIN tenants t ON t.id = r.tenant_id
+                INNER JOIN occupants o ON o.id = r.occupant_id
                 INNER JOIN rooms rm ON rm.id = r.room_id
                 INNER JOIN boarding_houses bh ON bh.id = rm.boarding_house_id
                 {where}
-                ORDER BY t.full_name;", conn);
+                ORDER BY Tenant;", conn);
 
             cmd.Parameters.AddWithValue("@bhId", bhId.Value);
             if (!string.IsNullOrWhiteSpace(q))
@@ -232,11 +262,13 @@ namespace BoardingHouse
 
             // Hide internal keys
             if (dgvDataSource.Columns.Contains("RentalId")) dgvDataSource.Columns["RentalId"].Visible = false;
-            if (dgvDataSource.Columns.Contains("TenantId")) dgvDataSource.Columns["TenantId"].Visible = false;
+            if (dgvDataSource.Columns.Contains("OccupantId")) dgvDataSource.Columns["OccupantId"].Visible = false;
         }
 
         private decimal GetTotalPaidForMonth(int rentalId, DateTime billMonth)
         {
+            var normalized = NormalizeBillMonth(billMonth);
+
             using var conn = DbConnectionFactory.CreateConnection();
             using var cmd = new MySqlCommand(@"
                 SELECT COALESCE(SUM(amount),0)
@@ -246,49 +278,17 @@ namespace BoardingHouse
                   AND status='POSTED';", conn);
 
             cmd.Parameters.AddWithValue("@rentalId", rentalId);
-            cmd.Parameters.AddWithValue("@billMonth", billMonth.ToString("yyyy-MM-dd"));
+            cmd.Parameters.AddWithValue("@billMonth", normalized.ToString("yyyy-MM-dd"));
 
             return Convert.ToDecimal(cmd.ExecuteScalar());
         }
 
         private void LoadBillingSummary(int rentalId)
         {
-            lvChargeList.Items.Clear();
-
             var billMonth = GetSelectedBillMonth();
-
-            using var conn = DbConnectionFactory.CreateConnection();
-            using var cmd = new MySqlCommand(@"
-                SELECT id, charge_type, description, amount, status
-                FROM billing_items
-                WHERE rental_id=@rentalId AND bill_month=@billMonth
-                ORDER BY FIELD(charge_type,'RENT','ELECTRIC','WATER','INTERNET','PENALTY','OTHER'), id;", conn);
-
-            cmd.Parameters.AddWithValue("@rentalId", rentalId);
-            cmd.Parameters.AddWithValue("@billMonth", billMonth.ToString("yyyy-MM-dd"));
-
-            decimal totalCharges = 0m;
-
-            using (var r = cmd.ExecuteReader())
-            {
-                while (r.Read())
-                {
-                    var chargeType = r["charge_type"]?.ToString() ?? "";
-                    var desc = r["description"]?.ToString() ?? "";
-                    var amt = Convert.ToDecimal(r["amount"]);
-                    var status = r["status"]?.ToString() ?? "";
-
-                    if (status != "VOID") totalCharges += amt;
-
-                    var li = new ListViewItem(chargeType);
-                    li.SubItems.Add(desc);
-                    li.SubItems.Add(amt.ToString("N2"));
-                    li.SubItems.Add(status);
-                    li.Tag = Convert.ToInt32(r["id"]);
-                    lvChargeList.Items.Add(li);
-                }
-            }
-
+            EnsureRentBillingItem(rentalId, billMonth);
+            var items = LoadBillingItems(rentalId, billMonth);
+            decimal totalCharges = items.Sum(item => item.Amount);
             var totalPaid = GetTotalPaidForMonth(rentalId, billMonth);
             var remaining = Math.Max(0m, totalCharges - totalPaid);
 
@@ -301,6 +301,111 @@ namespace BoardingHouse
 
             // ✅ NEW: lock/unlock payment controls after totals are computed
             ApplyPaymentGuardAfterTotals();
+        }
+
+        private List<BillingItem> LoadBillingItems(int rentalId, DateTime billMonth, bool skipVoids = true)
+        {
+            var normalized = NormalizeBillMonth(billMonth);
+            lvChargeList.Items.Clear();
+
+            using var conn = DbConnectionFactory.CreateConnection();
+            using var cmd = new MySqlCommand(@"
+                SELECT id, charge_type, description, amount, status
+                FROM billing_items
+                WHERE rental_id=@rentalId AND bill_month=@billMonth
+                ORDER BY FIELD(charge_type,'RENT','ELECTRIC','WATER','INTERNET','PENALTY','OTHER'), id;", conn);
+
+            cmd.Parameters.AddWithValue("@rentalId", rentalId);
+            cmd.Parameters.AddWithValue("@billMonth", normalized.ToString("yyyy-MM-dd"));
+
+            var items = new List<BillingItem>();
+
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                var chargeType = reader["charge_type"]?.ToString() ?? "";
+                var desc = reader["description"]?.ToString() ?? "";
+                var amt = Convert.ToDecimal(reader["amount"]);
+                var status = reader["status"]?.ToString() ?? "";
+
+                if (skipVoids && string.Equals(status, "VOID", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                var item = new BillingItem(Convert.ToInt32(reader["id"]), chargeType, desc, amt, status);
+
+                var li = new ListViewItem(item.ChargeType);
+                li.SubItems.Add(item.Description);
+                li.SubItems.Add(item.Amount.ToString("N2"));
+                li.SubItems.Add(item.Status);
+                li.Tag = item.Id;
+                lvChargeList.Items.Add(li);
+
+                items.Add(item);
+            }
+
+            return items;
+        }
+
+        private void EnsureRentBillingItem(int rentalId, DateTime billMonth)
+        {
+            var normalized = NormalizeBillMonth(billMonth);
+
+            using var conn = DbConnectionFactory.CreateConnection();
+            using var tx = conn.BeginTransaction();
+
+            using (var cmdCheck = new MySqlCommand(@"
+                SELECT id
+                FROM billing_items
+                WHERE rental_id=@rentalId AND bill_month=@billMonth AND charge_type='RENT'
+                LIMIT 1 FOR UPDATE;", conn, tx))
+            {
+                cmdCheck.Parameters.AddWithValue("@rentalId", rentalId);
+                cmdCheck.Parameters.AddWithValue("@billMonth", normalized.ToString("yyyy-MM-dd"));
+
+                using var reader = cmdCheck.ExecuteReader();
+                if (reader.Read())
+                {
+                    reader.Close();
+                    tx.Commit();
+                    return;
+                }
+            }
+
+            decimal monthlyRate = 0m;
+            using (var cmdRate = new MySqlCommand(@"SELECT monthly_rate FROM rentals WHERE id=@rentalId LIMIT 1;", conn, tx))
+            {
+                cmdRate.Parameters.AddWithValue("@rentalId", rentalId);
+                var rateObj = cmdRate.ExecuteScalar();
+                if (rateObj != null && rateObj != DBNull.Value)
+                    monthlyRate = Convert.ToDecimal(rateObj);
+            }
+
+            if (monthlyRate < 0) monthlyRate = 0m;
+
+            using (var cmdInsert = new MySqlCommand(@"
+                INSERT INTO billing_items
+                (rental_id, bill_month, charge_type, description, amount, status, created_at)
+                VALUES
+                (@rentalId, @billMonth, 'RENT', @description, @amount, 'UNPAID', NOW());", conn, tx))
+            {
+                cmdInsert.Parameters.AddWithValue("@rentalId", rentalId);
+                cmdInsert.Parameters.AddWithValue("@billMonth", normalized.ToString("yyyy-MM-dd"));
+                cmdInsert.Parameters.AddWithValue("@description", "Monthly Rent");
+                cmdInsert.Parameters.AddWithValue("@amount", monthlyRate);
+                cmdInsert.ExecuteNonQuery();
+            }
+
+            tx.Commit();
+        }
+
+        private void ResetBillingItemForm()
+        {
+            _selectedBillingItemId = null;
+            if (cbChargeType.Items.Count > 0)
+                cbChargeType.SelectedIndex = 0;
+            txtChargeDescription.Text = "";
+            nudChargeAmount.Value = nudChargeAmount.Minimum;
+            lvChargeList.SelectedItems.Clear();
         }
 
         private void LoadPaymentHistory(int rentalId)
@@ -483,6 +588,7 @@ namespace BoardingHouse
 
                 if (_selectedRentalId != null)
                 {
+                    EnsureRentBillingItem(_selectedRentalId.Value, bm);
                     LoadBillingSummary(_selectedRentalId.Value);
                     LoadPaymentHistory(_selectedRentalId.Value);
                     // ApplyPaymentGuardAfterTotals() is already called inside LoadBillingSummary
@@ -525,6 +631,7 @@ namespace BoardingHouse
                 txtBoardingHouseName.Text = (cbBoardingHouses.SelectedItem as ComboBoxItem)?.Text ?? "(Boardinghouse)";
 
                 ClearForm(keepSelection: true);
+                EnsureRentBillingItem(_selectedRentalId.Value, GetSelectedBillMonth());
                 LoadBillingSummary(_selectedRentalId.Value);
                 LoadPaymentHistory(_selectedRentalId.Value);
 
@@ -695,9 +802,217 @@ namespace BoardingHouse
             }
         }
 
-        private void lvChargeList_Click(object sender, EventArgs e)
+        private void lvChargeList_SelectedIndexChanged(object sender, EventArgs e)
         {
-            // intentionally empty
+            if (lvChargeList.SelectedItems.Count == 0)
+            {
+                _selectedBillingItemId = null;
+                return;
+            }
+
+            var selected = lvChargeList.SelectedItems[0];
+            _selectedBillingItemId = selected.Tag is int id ? id : null;
+
+            var chargeType = selected.Text;
+            if (cbChargeType.Items.Contains(chargeType))
+                cbChargeType.SelectedItem = chargeType;
+            else if (cbChargeType.Items.Count > 0)
+                cbChargeType.SelectedIndex = 0;
+
+            txtChargeDescription.Text = selected.SubItems[1].Text;
+
+            var amountText = selected.SubItems[2].Text;
+            if (!decimal.TryParse(amountText, NumberStyles.AllowDecimalPoint | NumberStyles.AllowThousands, CultureInfo.CurrentCulture, out var parsed) &&
+                !decimal.TryParse(amountText, NumberStyles.AllowDecimalPoint | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out parsed))
+            {
+                parsed = nudChargeAmount.Minimum;
+            }
+
+            parsed = Math.Min(nudChargeAmount.Maximum, Math.Max(nudChargeAmount.Minimum, parsed));
+            nudChargeAmount.Value = parsed;
+        }
+
+        private void btnAddOrUpdateCharge_Click(object sender, EventArgs e)
+        {
+            SoundClicked.operationsBtn();
+            if (_currentRentalId == null)
+            {
+                MessageBox.Show("Open the billing items editor after selecting a tenant.", "Required", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            var chargeType = cbChargeType.SelectedItem?.ToString() ?? "";
+            var description = (txtChargeDescription.Text ?? "").Trim();
+            var amount = nudChargeAmount.Value;
+
+            if (amount <= 0)
+            {
+                MessageBox.Show("Amount must be greater than zero.", "Invalid Amount", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            if ((chargeType == "OTHER" || chargeType == "PENALTY") && string.IsNullOrWhiteSpace(description))
+            {
+                MessageBox.Show("Description is required for PENALTY and OTHER charges.", "Required", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            var billMonth = _currentBillMonth == DateTime.MinValue ? NormalizeBillMonth(dpBilling_Month.Value) : _currentBillMonth;
+            var normalizedString = NormalizeBillMonth(billMonth).ToString("yyyy-MM-dd");
+
+            bool saved = false;
+
+            try
+            {
+                using var conn = DbConnectionFactory.CreateConnection();
+                using var tx = conn.BeginTransaction();
+
+                int? existingId = null;
+                string existingStatus = "";
+
+                using (var cmdCheck = new MySqlCommand(@"
+                    SELECT id, status
+                    FROM billing_items
+                    WHERE rental_id=@rentalId AND bill_month=@billMonth AND charge_type=@chargeType
+                    LIMIT 1 FOR UPDATE;", conn, tx))
+                {
+                    cmdCheck.Parameters.AddWithValue("@rentalId", _currentRentalId.Value);
+                    cmdCheck.Parameters.AddWithValue("@billMonth", normalizedString);
+                    cmdCheck.Parameters.AddWithValue("@chargeType", chargeType);
+
+                    using var reader = cmdCheck.ExecuteReader();
+                    if (reader.Read())
+                    {
+                        existingId = Convert.ToInt32(reader["id"]);
+                        existingStatus = reader["status"]?.ToString() ?? "";
+                    }
+                }
+
+                if (string.Equals(existingStatus, "PAID", StringComparison.OrdinalIgnoreCase))
+                {
+                    MessageBox.Show("Paid charges cannot be edited.", "Not Allowed", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    tx.Rollback();
+                    return;
+                }
+
+                var descriptionParam = string.IsNullOrWhiteSpace(description) ? (object)DBNull.Value : description;
+
+                if (existingId == null)
+                {
+                    using var cmdInsert = new MySqlCommand(@"
+                        INSERT INTO billing_items
+                        (rental_id, bill_month, charge_type, description, amount, status, created_at)
+                        VALUES
+                        (@rentalId, @billMonth, @chargeType, @description, @amount, 'UNPAID', NOW());", conn, tx);
+                    cmdInsert.Parameters.AddWithValue("@rentalId", _currentRentalId.Value);
+                    cmdInsert.Parameters.AddWithValue("@billMonth", normalizedString);
+                    cmdInsert.Parameters.AddWithValue("@chargeType", chargeType);
+                    cmdInsert.Parameters.AddWithValue("@description", descriptionParam);
+                    cmdInsert.Parameters.AddWithValue("@amount", amount);
+                    cmdInsert.ExecuteNonQuery();
+                }
+                else
+                {
+                    using var cmdUpdate = new MySqlCommand(@"
+                        UPDATE billing_items
+                        SET description=@description, amount=@amount
+                        WHERE id=@id AND status!='PAID';", conn, tx);
+                    cmdUpdate.Parameters.AddWithValue("@id", existingId.Value);
+                    cmdUpdate.Parameters.AddWithValue("@description", descriptionParam);
+                    cmdUpdate.Parameters.AddWithValue("@amount", amount);
+
+                    var updated = cmdUpdate.ExecuteNonQuery();
+                    if (updated == 0)
+                    {
+                        MessageBox.Show("Unable to update the selected billing item. It might already be paid.", "Update Failed", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        tx.Rollback();
+                        return;
+                    }
+                }
+
+                tx.Commit();
+                saved = true;
+                ShowInfo("Billing item saved.");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message, "Billing Item Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+            finally
+            {
+                if (saved && _currentRentalId != null)
+                {
+                    LoadBillingSummary(_currentRentalId.Value);
+                    ResetBillingItemForm();
+                }
+            }
+        }
+
+        private void btnVoidCharge_Click(object sender, EventArgs e)
+        {
+            SoundClicked.operationsBtn();
+            if (_currentRentalId == null || _selectedBillingItemId == null)
+            {
+                MessageBox.Show("Select a billing item to void.", "Required", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (lvChargeList.SelectedItems.Count == 0)
+            {
+                MessageBox.Show("Select a billing item to void.", "Required", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            var selected = lvChargeList.SelectedItems[0];
+            var status = selected.SubItems[3].Text;
+            var chargeType = selected.Text;
+
+            if (string.Equals(status, "PAID", StringComparison.OrdinalIgnoreCase))
+            {
+                MessageBox.Show("Paid charges cannot be voided.", "Not Allowed", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            if (string.Equals(chargeType, "RENT", StringComparison.OrdinalIgnoreCase))
+            {
+                MessageBox.Show("Rent charges cannot be voided.", "Not Allowed", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            bool voided = false;
+            try
+            {
+                using var conn = DbConnectionFactory.CreateConnection();
+                using var cmd = new MySqlCommand(@"
+                    UPDATE billing_items
+                    SET status='VOID'
+                    WHERE id=@id AND status!='PAID';", conn);
+                cmd.Parameters.AddWithValue("@id", _selectedBillingItemId.Value);
+
+                var affected = cmd.ExecuteNonQuery();
+                if (affected == 0)
+                {
+                    MessageBox.Show("Unable to void the selected billing item.", "Void Failed", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+
+                voided = true;
+                ShowInfo("Billing item voided.");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message, "Billing Item Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+            finally
+            {
+                if (voided && _currentRentalId != null)
+                {
+                    LoadBillingSummary(_currentRentalId.Value);
+                    ResetBillingItemForm();
+                }
+            }
         }
 
         private void lvPaymentHistory_SelectedIndexChanged(object sender, EventArgs e)
@@ -741,7 +1056,14 @@ namespace BoardingHouse
             var doc = new PrintDocument();
             doc.DocumentName = "Payment Receipt";
 
-            doc.DefaultPageSettings.PaperSize = new PaperSize("Receipt80mm", 315, 800);
+            int lineCount = receiptText.Split('\n').Length;
+            int lineHeight = 20;
+            int padding = 40;
+
+            int paperHeight = (lineCount * lineHeight) + padding;
+
+
+            doc.DefaultPageSettings.PaperSize = new PaperSize("Receipt80mm", 315, paperHeight);
             doc.DefaultPageSettings.Margins = new Margins(10, 10, 10, 10);
 
             doc.PrintPage += Receipt_PrintPage;
@@ -790,29 +1112,25 @@ namespace BoardingHouse
 
         private void Receipt_PrintPage(object sender, PrintPageEventArgs e)
         {
-            int left = e.MarginBounds.Left;
-            int top = e.MarginBounds.Top;
+            using var font = new Font("Consolas", 10f);
+            using var brush = Brushes.Black;
 
-            string[] lines = _receiptToPrint.Replace("\r\n", "\n").Split('\n');
-            float lineHeight = _receiptFont.GetHeight(e.Graphics) + 2;
-            float y = top;
+            var rect = new RectangleF(
+                e.MarginBounds.Left,
+                e.MarginBounds.Top + 20,
+                e.MarginBounds.Width,
+                e.MarginBounds.Height - 20
+            );
 
-            while (_printLineIndex < lines.Length)
+            var fmt = new StringFormat
             {
-                e.Graphics.DrawString(lines[_printLineIndex], _receiptFont, Brushes.Black, left, y);
-                y += lineHeight;
+                Alignment = StringAlignment.Center,   
+                LineAlignment = StringAlignment.Near   
+            };
 
-                if (y + lineHeight > e.MarginBounds.Bottom)
-                {
-                    e.HasMorePages = true;
-                    return;
-                }
-
-                _printLineIndex++;
-            }
+            e.Graphics.DrawString(_receiptToPrint, font, brush, rect, fmt);
 
             e.HasMorePages = false;
-            _printLineIndex = 0;
         }
 
 
@@ -831,12 +1149,15 @@ namespace BoardingHouse
                 using var cmd = new MySqlCommand(@"
                     SELECT
                         p.id, p.payment_date, p.bill_month, p.amount, p.method, p.reference_no, p.remarks, p.status,
-                        t.full_name AS tenant_name,
+                        COALESCE(NULLIF(TRIM(o.full_name),''), TRIM(CONCAT(
+                            COALESCE(o.lastname,''), ', ', COALESCE(o.firstname,''),
+                            CASE WHEN o.middlename IS NULL OR o.middlename='' THEN '' ELSE CONCAT(' ', o.middlename) END
+                        ))) AS tenant_name,
                         rm.room_no,
                         bh.name AS bh_name
                     FROM payments p
                     INNER JOIN rentals r ON r.id = p.rental_id
-                    INNER JOIN tenants t ON t.id = r.tenant_id
+                    INNER JOIN occupants o ON o.id = r.occupant_id
                     INNER JOIN rooms rm ON rm.id = r.room_id
                     INNER JOIN boarding_houses bh ON bh.id = rm.boarding_house_id
                     WHERE p.id=@id;", conn);
@@ -914,6 +1235,7 @@ namespace BoardingHouse
                     status = r["status"]?.ToString() ?? "";
                     r.Close();
                 }
+                billMonth = NormalizeBillMonth(billMonth);
 
                 if (status == "VOID")
                 {
@@ -935,7 +1257,7 @@ namespace BoardingHouse
                     cmdVoid.ExecuteNonQuery();
                 }
 
-                // Simple revert: all PAID for that month -> UNPAID
+                // Simplified revert: all PAID billing items in that month are set back to UNPAID.
                 using (var cmdRevert = new MySqlCommand(@"
                     UPDATE billing_items
                     SET status='UNPAID'
@@ -981,5 +1303,138 @@ namespace BoardingHouse
 
             public override string ToString() => Text;
         }
+
+        private sealed record BillingItem(int Id, string ChargeType, string Description, decimal Amount, string Status);
+
+        private void manageBillItemsBtn_Click(object sender, EventArgs e)
+        {
+            SoundClicked.operationsBtn();
+            if (_selectedRentalId == null)
+            {
+                MessageBox.Show("Select a tenant first to manage billing items.", "Required", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            _currentRentalId = _selectedRentalId;
+            _currentBillMonth = NormalizeBillMonth(dpBilling_Month.Value);
+
+            try
+            {
+                EnsureRentBillingItem(_currentRentalId.Value, _currentBillMonth);
+                LoadBillingSummary(_currentRentalId.Value);
+                ResetBillingItemForm();
+                billingItemsModal.Visible = true;
+                billingItemsModal.BringToFront();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message, "Billing Items Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void closeBillingItemsBtn_Click(object sender, EventArgs e)
+        {
+            billingItemsModal.Visible = false;
+            ResetBillingItemForm();
+            _currentRentalId = null;
+            _currentBillMonth = DateTime.MinValue;
+        }
+
+        public void OpenPaymentsFromRental(int rentalId, bool autoSelectFirstRoom)
+        {
+            if (rentalId <= 0) return;
+
+            try
+            {
+                if (cbBoardingHouses.Items.Count == 0)
+                    LoadBoardingHouses();
+                var bhId = GetBoardingHouseIdByRental(rentalId);
+                if (bhId != null)
+                {
+                    SelectBoardingHouseInCombo(bhId.Value);
+                }
+
+                RefreshTenantGrid();
+
+                SelectRentalRowInGrid(rentalId, triggerCellClickLogic: true);
+
+                if (_selectedRentalId != rentalId)
+                    ShowInfo("Rental not found in the current boarding house list.");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message, "Open Payments Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+
+        private int? GetBoardingHouseIdByRental(int rentalId)
+        {
+            using var conn = DbConnectionFactory.CreateConnection();
+            using var cmd = new MySqlCommand(@"
+        SELECT bh.id
+        FROM rentals r
+        INNER JOIN rooms rm ON rm.id = r.room_id
+        INNER JOIN boarding_houses bh ON bh.id = rm.boarding_house_id
+        WHERE r.id = @rentalId
+        LIMIT 1;", conn);
+
+            cmd.Parameters.AddWithValue("@rentalId", rentalId);
+
+            var result = cmd.ExecuteScalar();
+            if (result == null || result == DBNull.Value) return null;
+
+            return Convert.ToInt32(result);
+        }
+
+        private void SelectBoardingHouseInCombo(int bhId)
+        {
+            for (int i = 0; i < cbBoardingHouses.Items.Count; i++)
+            {
+                if (cbBoardingHouses.Items[i] is ComboBoxItem item && item.Id == bhId)
+                {
+                    cbBoardingHouses.SelectedIndex = i;
+                    return;
+                }
+            }
+        }
+
+        private void SelectRentalRowInGrid(int rentalId, bool triggerCellClickLogic)
+        {
+            if (dgvDataSource.DataSource == null || dgvDataSource.Rows.Count == 0)
+                return;
+
+            foreach (DataGridViewRow row in dgvDataSource.Rows)
+            {
+                if (row.IsNewRow) continue;
+
+                if (row.Cells["RentalId"]?.Value == null) continue;
+
+                if (Convert.ToInt32(row.Cells["RentalId"].Value) == rentalId)
+                {
+                    dgvDataSource.ClearSelection();
+                    row.Selected = true;
+
+                    dgvDataSource.FirstDisplayedScrollingRowIndex = row.Index;
+
+                    if (triggerCellClickLogic)
+                    {
+                        dgvDataSource_CellClick(dgvDataSource, new DataGridViewCellEventArgs(0, row.Index));
+                    }
+                    else
+                    {
+                        _selectedRentalId = rentalId;
+                        EnsureRentBillingItem(rentalId, GetSelectedBillMonth());
+                        LoadBillingSummary(rentalId);
+                        LoadPaymentHistory(rentalId);
+                    }
+
+                    return;
+                }
+            }
+        }
+
+
+
     }
 }

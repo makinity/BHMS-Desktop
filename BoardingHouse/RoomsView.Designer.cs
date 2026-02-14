@@ -1,4 +1,4 @@
-namespace BoardingHouse
+﻿namespace BoardingHouse
 {
     partial class RoomsView
     {
@@ -25,17 +25,15 @@ namespace BoardingHouse
             cbBoardingHouses = new ComboBox();
             addRoomBtn = new Button();
             flpRooms = new FlowLayoutPanel();
-            button1 = new Button();
             detailsModal = new Panel();
-            btnCloseDetails = new Button();
             grpQuickActions = new GroupBox();
             btnMarkInactive = new Button();
             btnMarkMaintenance = new Button();
             btnMarkOccupied = new Button();
             btnMarkAvailable = new Button();
             grpDetails = new GroupBox();
-            button3 = new Button();
-            button2 = new Button();
+            updateRoomBtn = new Button();
+            deleteRoomBtn = new Button();
             lblOccupancy = new Label();
             detailsTenantsList = new ListBox();
             detailsNotes = new TextBox();
@@ -71,14 +69,18 @@ namespace BoardingHouse
             addRoomNotesTxt = new TextBox();
             addRoomSaveBtn = new Button();
             addRoomCancelBtn = new Button();
+            mySqlCommand1 = new MySql.Data.MySqlClient.MySqlCommand();
+            viewTenantsPanel = new Panel();
+            addTenantBtn = new Button();
+            ViewTanantCLoseBtn = new Button();
             topBar.SuspendLayout();
-            flpRooms.SuspendLayout();
             detailsModal.SuspendLayout();
             grpQuickActions.SuspendLayout();
             grpDetails.SuspendLayout();
             addRoomModal.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)addRoomCapNum).BeginInit();
             ((System.ComponentModel.ISupportInitialize)addRoomRateNum).BeginInit();
+            viewTenantsPanel.SuspendLayout();
             SuspendLayout();
             // 
             // topBar
@@ -93,11 +95,10 @@ namespace BoardingHouse
             topBar.Controls.Add(txtSearch);
             topBar.Controls.Add(cbBoardingHouses);
             topBar.Controls.Add(addRoomBtn);
-            topBar.Dock = DockStyle.Top;
             topBar.Location = new Point(0, 0);
             topBar.Name = "topBar";
             topBar.Padding = new Padding(18, 10, 18, 10);
-            topBar.Size = new Size(1317, 92);
+            topBar.Size = new Size(1296, 92);
             topBar.TabIndex = 0;
             topBar.Paint += topBar_Paint;
             // 
@@ -140,11 +141,11 @@ namespace BoardingHouse
             // 
             // btnSearch
             // 
-            btnSearch.Location = new Point(876, 40);
+            btnSearch.Location = new Point(864, 36);
             btnSearch.Name = "btnSearch";
-            btnSearch.Size = new Size(104, 34);
+            btnSearch.Size = new Size(39, 34);
             btnSearch.TabIndex = 6;
-            btnSearch.Text = "Search";
+            btnSearch.Text = "🔍";
             btnSearch.UseVisualStyleBackColor = true;
             btnSearch.Click += btnSearch_Click;
             // 
@@ -190,7 +191,6 @@ namespace BoardingHouse
             // flpRooms
             // 
             flpRooms.AutoScroll = true;
-            flpRooms.Controls.Add(button1);
             flpRooms.Location = new Point(41, 127);
             flpRooms.Name = "flpRooms";
             flpRooms.Padding = new Padding(16);
@@ -198,46 +198,20 @@ namespace BoardingHouse
             flpRooms.TabIndex = 1;
             flpRooms.Paint += flpRooms_Paint_1;
             // 
-            // button1
-            // 
-            button1.BackColor = Color.FromArgb(128, 255, 128);
-            button1.ForeColor = SystemColors.ActiveCaptionText;
-            button1.Location = new Point(19, 19);
-            button1.Name = "button1";
-            button1.Size = new Size(138, 34);
-            button1.TabIndex = 1;
-            button1.Text = "AVAILABLE";
-            button1.UseVisualStyleBackColor = false;
-            button1.Click += button1_Click_1;
-            // 
             // detailsModal
             // 
             detailsModal.BackColor = Color.FromArgb(48, 54, 92);
             detailsModal.BorderStyle = BorderStyle.FixedSingle;
-            detailsModal.Controls.Add(btnCloseDetails);
             detailsModal.Controls.Add(grpQuickActions);
             detailsModal.Controls.Add(grpDetails);
             detailsModal.Controls.Add(lblRoomTitle);
             detailsModal.Dock = DockStyle.Right;
-            detailsModal.Location = new Point(1317, 0);
+            detailsModal.Location = new Point(1302, 0);
             detailsModal.Name = "detailsModal";
             detailsModal.Padding = new Padding(16);
-            detailsModal.Size = new Size(360, 975);
+            detailsModal.Size = new Size(375, 975);
             detailsModal.TabIndex = 2;
-            detailsModal.Visible = false;
             detailsModal.Paint += detailsModal_Paint;
-            // 
-            // btnCloseDetails
-            // 
-            btnCloseDetails.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            btnCloseDetails.BackColor = Color.FromArgb(255, 128, 128);
-            btnCloseDetails.Location = new Point(294, 11);
-            btnCloseDetails.Name = "btnCloseDetails";
-            btnCloseDetails.Size = new Size(45, 28);
-            btnCloseDetails.TabIndex = 4;
-            btnCloseDetails.Text = "X";
-            btnCloseDetails.UseVisualStyleBackColor = false;
-            btnCloseDetails.Click += button1_Click;
             // 
             // grpQuickActions
             // 
@@ -250,10 +224,11 @@ namespace BoardingHouse
             grpQuickActions.Location = new Point(12, 800);
             grpQuickActions.Name = "grpQuickActions";
             grpQuickActions.Padding = new Padding(12);
-            grpQuickActions.Size = new Size(317, 154);
+            grpQuickActions.Size = new Size(332, 154);
             grpQuickActions.TabIndex = 3;
             grpQuickActions.TabStop = false;
             grpQuickActions.Text = "Quick Actions";
+            grpQuickActions.Visible = false;
             // 
             // btnMarkInactive
             // 
@@ -306,8 +281,8 @@ namespace BoardingHouse
             // grpDetails
             // 
             grpDetails.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            grpDetails.Controls.Add(button3);
-            grpDetails.Controls.Add(button2);
+            grpDetails.Controls.Add(updateRoomBtn);
+            grpDetails.Controls.Add(deleteRoomBtn);
             grpDetails.Controls.Add(lblOccupancy);
             grpDetails.Controls.Add(detailsTenantsList);
             grpDetails.Controls.Add(detailsNotes);
@@ -327,35 +302,37 @@ namespace BoardingHouse
             grpDetails.Location = new Point(12, 48);
             grpDetails.Name = "grpDetails";
             grpDetails.Padding = new Padding(12);
-            grpDetails.Size = new Size(324, 756);
+            grpDetails.Size = new Size(339, 731);
             grpDetails.TabIndex = 2;
             grpDetails.TabStop = false;
             grpDetails.Text = "Details";
             grpDetails.Enter += grpDetails_Enter;
             // 
-            // button3
+            // updateRoomBtn
             // 
-            button3.BackColor = Color.FromArgb(128, 255, 128);
-            button3.ForeColor = SystemColors.ActiveCaptionText;
-            button3.Location = new Point(188, 640);
-            button3.Name = "button3";
-            button3.Size = new Size(104, 34);
-            button3.TabIndex = 21;
-            button3.Text = "Update";
-            button3.UseVisualStyleBackColor = false;
-            button3.Click += button3_Click;
+            updateRoomBtn.BackColor = Color.FromArgb(192, 255, 192);
+            updateRoomBtn.ForeColor = SystemColors.ActiveCaptionText;
+            updateRoomBtn.Location = new Point(198, 655);
+            updateRoomBtn.Name = "updateRoomBtn";
+            updateRoomBtn.Size = new Size(94, 29);
+            updateRoomBtn.TabIndex = 23;
+            updateRoomBtn.Text = "Update";
+            updateRoomBtn.UseVisualStyleBackColor = false;
+            updateRoomBtn.Visible = false;
+            updateRoomBtn.Click += updateRoomBtn_Click;
             // 
-            // button2
+            // deleteRoomBtn
             // 
-            button2.BackColor = Color.FromArgb(255, 192, 192);
-            button2.ForeColor = SystemColors.ActiveCaptionText;
-            button2.Location = new Point(25, 640);
-            button2.Name = "button2";
-            button2.Size = new Size(104, 34);
-            button2.TabIndex = 20;
-            button2.Text = "Delete";
-            button2.UseVisualStyleBackColor = false;
-            button2.Click += button2_Click_2;
+            deleteRoomBtn.BackColor = Color.FromArgb(255, 192, 192);
+            deleteRoomBtn.ForeColor = Color.Black;
+            deleteRoomBtn.Location = new Point(35, 655);
+            deleteRoomBtn.Name = "deleteRoomBtn";
+            deleteRoomBtn.Size = new Size(94, 29);
+            deleteRoomBtn.TabIndex = 22;
+            deleteRoomBtn.Text = "Delete";
+            deleteRoomBtn.UseVisualStyleBackColor = false;
+            deleteRoomBtn.Visible = false;
+            deleteRoomBtn.Click += deleteRoomBtn_Click;
             // 
             // lblOccupancy
             // 
@@ -372,8 +349,9 @@ namespace BoardingHouse
             // 
             detailsTenantsList.Location = new Point(15, 338);
             detailsTenantsList.Name = "detailsTenantsList";
-            detailsTenantsList.Size = new Size(297, 84);
+            detailsTenantsList.Size = new Size(302, 84);
             detailsTenantsList.TabIndex = 19;
+            detailsTenantsList.Click += detailsTenantsList_Click;
             // 
             // detailsNotes
             // 
@@ -382,8 +360,9 @@ namespace BoardingHouse
             detailsNotes.Multiline = true;
             detailsNotes.Name = "detailsNotes";
             detailsNotes.ScrollBars = ScrollBars.Vertical;
-            detailsNotes.Size = new Size(300, 80);
+            detailsNotes.Size = new Size(307, 80);
             detailsNotes.TabIndex = 13;
+            detailsNotes.Click += detailsNotes_Click;
             // 
             // labelNotes
             // 
@@ -411,7 +390,7 @@ namespace BoardingHouse
             detailsStatus.Location = new Point(15, 282);
             detailsStatus.Name = "detailsStatus";
             detailsStatus.ReadOnly = true;
-            detailsStatus.Size = new Size(300, 27);
+            detailsStatus.Size = new Size(302, 27);
             detailsStatus.TabIndex = 9;
             // 
             // labelRoomStatus
@@ -429,7 +408,7 @@ namespace BoardingHouse
             detailsRate.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             detailsRate.Location = new Point(15, 220);
             detailsRate.Name = "detailsRate";
-            detailsRate.Size = new Size(300, 27);
+            detailsRate.Size = new Size(302, 27);
             detailsRate.TabIndex = 7;
             // 
             // labelRate
@@ -447,7 +426,7 @@ namespace BoardingHouse
             detailsCapacity.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             detailsCapacity.Location = new Point(15, 161);
             detailsCapacity.Name = "detailsCapacity";
-            detailsCapacity.Size = new Size(300, 27);
+            detailsCapacity.Size = new Size(302, 27);
             detailsCapacity.TabIndex = 5;
             // 
             // labelCap
@@ -465,7 +444,7 @@ namespace BoardingHouse
             detailsRoomType.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             detailsRoomType.Location = new Point(15, 102);
             detailsRoomType.Name = "detailsRoomType";
-            detailsRoomType.Size = new Size(300, 27);
+            detailsRoomType.Size = new Size(302, 27);
             detailsRoomType.TabIndex = 3;
             // 
             // labelType
@@ -483,7 +462,7 @@ namespace BoardingHouse
             detailsRoomNo.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             detailsRoomNo.Location = new Point(12, 49);
             detailsRoomNo.Name = "detailsRoomNo";
-            detailsRoomNo.Size = new Size(300, 27);
+            detailsRoomNo.Size = new Size(305, 27);
             detailsRoomNo.TabIndex = 1;
             // 
             // labelRoomNo
@@ -510,7 +489,7 @@ namespace BoardingHouse
             // addRoomModal
             // 
             addRoomModal.Anchor = AnchorStyles.None;
-            addRoomModal.BackColor = Color.WhiteSmoke;
+            addRoomModal.BackColor = Color.FromArgb(48, 54, 92);
             addRoomModal.BorderStyle = BorderStyle.FixedSingle;
             addRoomModal.Controls.Add(addRoomTitle);
             addRoomModal.Controls.Add(addRoomCloseBtn);
@@ -530,7 +509,8 @@ namespace BoardingHouse
             addRoomModal.Controls.Add(addRoomNotesTxt);
             addRoomModal.Controls.Add(addRoomSaveBtn);
             addRoomModal.Controls.Add(addRoomCancelBtn);
-            addRoomModal.Location = new Point(514, 98);
+            addRoomModal.ForeColor = SystemColors.ButtonHighlight;
+            addRoomModal.Location = new Point(423, 115);
             addRoomModal.Name = "addRoomModal";
             addRoomModal.Size = new Size(480, 560);
             addRoomModal.TabIndex = 5;
@@ -684,29 +664,75 @@ namespace BoardingHouse
             // 
             // addRoomSaveBtn
             // 
+            addRoomSaveBtn.BackColor = Color.FromArgb(128, 255, 128);
+            addRoomSaveBtn.ForeColor = SystemColors.ActiveCaptionText;
             addRoomSaveBtn.Location = new Point(354, 520);
             addRoomSaveBtn.Name = "addRoomSaveBtn";
             addRoomSaveBtn.Size = new Size(110, 32);
             addRoomSaveBtn.TabIndex = 16;
             addRoomSaveBtn.Text = "Save";
-            addRoomSaveBtn.UseVisualStyleBackColor = true;
+            addRoomSaveBtn.UseVisualStyleBackColor = false;
             addRoomSaveBtn.Click += addRoomSaveBtn_Click;
             // 
             // addRoomCancelBtn
             // 
+            addRoomCancelBtn.BackColor = Color.FromArgb(255, 128, 128);
+            addRoomCancelBtn.ForeColor = SystemColors.ActiveCaptionText;
             addRoomCancelBtn.Location = new Point(16, 520);
             addRoomCancelBtn.Name = "addRoomCancelBtn";
             addRoomCancelBtn.Size = new Size(110, 32);
             addRoomCancelBtn.TabIndex = 17;
             addRoomCancelBtn.Text = "Cancel";
-            addRoomCancelBtn.UseVisualStyleBackColor = true;
+            addRoomCancelBtn.UseVisualStyleBackColor = false;
             addRoomCancelBtn.Click += addRoomCancelBtn_Click;
+            // 
+            // mySqlCommand1
+            // 
+            mySqlCommand1.CacheAge = 0;
+            mySqlCommand1.Connection = null;
+            mySqlCommand1.EnableCaching = false;
+            mySqlCommand1.Transaction = null;
+            // 
+            // viewTenantsPanel
+            // 
+            viewTenantsPanel.BackColor = Color.FromArgb(48, 54, 92);
+            viewTenantsPanel.Controls.Add(addTenantBtn);
+            viewTenantsPanel.Controls.Add(ViewTanantCLoseBtn);
+            viewTenantsPanel.Location = new Point(456, 98);
+            viewTenantsPanel.Name = "viewTenantsPanel";
+            viewTenantsPanel.Size = new Size(400, 611);
+            viewTenantsPanel.TabIndex = 6;
+            viewTenantsPanel.Visible = false;
+            // 
+            // addTenantBtn
+            // 
+            addTenantBtn.BackColor = Color.FromArgb(128, 128, 255);
+            addTenantBtn.Location = new Point(164, 574);
+            addTenantBtn.Name = "addTenantBtn";
+            addTenantBtn.Size = new Size(77, 34);
+            addTenantBtn.TabIndex = 9;
+            addTenantBtn.Text = "Add +";
+            addTenantBtn.UseVisualStyleBackColor = false;
+            addTenantBtn.Click += addTenantBtn_Click;
+            // 
+            // ViewTanantCLoseBtn
+            // 
+            ViewTanantCLoseBtn.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            ViewTanantCLoseBtn.BackColor = Color.FromArgb(255, 128, 128);
+            ViewTanantCLoseBtn.Location = new Point(352, 3);
+            ViewTanantCLoseBtn.Name = "ViewTanantCLoseBtn";
+            ViewTanantCLoseBtn.Size = new Size(45, 28);
+            ViewTanantCLoseBtn.TabIndex = 43;
+            ViewTanantCLoseBtn.Text = "X";
+            ViewTanantCLoseBtn.UseVisualStyleBackColor = false;
+            ViewTanantCLoseBtn.Click += ViewTanantCLoseBtn_Click;
             // 
             // RoomsView
             // 
             AutoScaleDimensions = new SizeF(8F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
             BackColor = SystemColors.ButtonHighlight;
+            Controls.Add(viewTenantsPanel);
             Controls.Add(addRoomModal);
             Controls.Add(topBar);
             Controls.Add(detailsModal);
@@ -717,7 +743,6 @@ namespace BoardingHouse
             Resize += RoomsView_Resize;
             topBar.ResumeLayout(false);
             topBar.PerformLayout();
-            flpRooms.ResumeLayout(false);
             detailsModal.ResumeLayout(false);
             detailsModal.PerformLayout();
             grpQuickActions.ResumeLayout(false);
@@ -727,6 +752,7 @@ namespace BoardingHouse
             addRoomModal.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)addRoomCapNum).EndInit();
             ((System.ComponentModel.ISupportInitialize)addRoomRateNum).EndInit();
+            viewTenantsPanel.ResumeLayout(false);
             ResumeLayout(false);
 
         }
@@ -751,7 +777,6 @@ namespace BoardingHouse
         private System.Windows.Forms.GroupBox grpDetails;
         private System.Windows.Forms.TextBox detailsRoomNo;
         private System.Windows.Forms.Label labelRoomNo;
-        private System.Windows.Forms.TextBox detailsRoomType;
         private System.Windows.Forms.Label labelType;
         private System.Windows.Forms.TextBox detailsCapacity;
         private System.Windows.Forms.Label labelCap;
@@ -787,11 +812,14 @@ namespace BoardingHouse
         private System.Windows.Forms.TextBox addRoomNotesTxt;
         private System.Windows.Forms.Button addRoomSaveBtn;
         private System.Windows.Forms.Button addRoomCancelBtn;
-        private System.Windows.Forms.Button btnCloseDetails;
-        private Button button1;
         private ListBox detailsTenantsList;
         private Label lblOccupancy;
-        private Button button2;
-        private Button button3;
+        private Button updateRoomBtn;
+        private Button deleteRoomBtn;
+        private MySql.Data.MySqlClient.MySqlCommand mySqlCommand1;
+        private TextBox detailsRoomType;
+        private Panel viewTenantsPanel;
+        private Button ViewTanantCLoseBtn;
+        private Button addTenantBtn;
     }
 }

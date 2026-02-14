@@ -3,22 +3,48 @@ using System;
 using System.Data;
 using System.Drawing;
 using System.Globalization;
+using System.IO;
+using System.Text;
 using System.Windows.Forms;
 
 namespace BoardingHouse
 {
     public partial class RoomsView : UserControl
     {
+        private sealed record TenantCardData(
+            int OccupantId,
+            int RentalId,
+            string FullName,
+            string Contact,
+            string Address,
+            string Email,
+            string ProfilePath
+        );
+
+        private sealed class OccupantCardMeta
+        {
+            public int OccupantId { get; }
+            public OccupantCardMeta(int occupantId) => OccupantId = occupantId;
+        }
+
         private int _selectedBhId = 0;
         private int _selectedRoomId = 0;
         private int _selectedTenantId = 0;
         private int _selectedRentalId = 0;
+        private int _pendingOpenBhId = 0;
+        private bool _pendingAutoSelectFirstRoom = true;
+        private int _pendingOpenRoomId = 0;
+
+        private FlowLayoutPanel flpViewTenants;
+        private readonly Image _tenantPlaceholderImage;
 
         public int CurrentUserId { get; set; }
 
         public RoomsView()
         {
             InitializeComponent();
+            EnsureViewTenantsContainer();
+            _tenantPlaceholderImage = CreateTenantPlaceholderImage();
         }
 
         private void RoomsView_Load(object sender, EventArgs e)
@@ -52,11 +78,6 @@ namespace BoardingHouse
             btnMarkMaintenance.Click += (s, e) => TrySetRoomStatus("MAINTENANCE");
             btnMarkInactive.Click += (s, e) => TrySetRoomStatus("INACTIVE");
 
-            btnCloseDetails.Click += (s, e) =>
-            {
-                detailsModal.Visible = false;
-                _selectedRoomId = 0;
-            };
         }
 
         private void LoadBoardingHouseDropdown()
@@ -208,7 +229,6 @@ namespace BoardingHouse
                       AND (@st = 'ALL' OR r.status = @st)
                     ORDER BY r.room_no ASC;
                 ";
-
 
                     cmd.Parameters.AddWithValue("@bhId", _selectedBhId);
                     cmd.Parameters.AddWithValue("@kw", keyword);
@@ -414,6 +434,10 @@ namespace BoardingHouse
         private void RoomCard_Click(object sender, EventArgs e)
         {
             SoundClicked.itemClicked();
+            grpQuickActions.Visible = true;
+            updateRoomBtn.Visible = true;
+            deleteRoomBtn.Visible = true;
+
             Control clicked = sender as Control;
             if (clicked == null) return;
 
@@ -475,7 +499,7 @@ namespace BoardingHouse
                             return;
                         }
 
-                        lblRoomTitle.Text = $"Room Details (ID: {roomId})";
+                        lblRoomTitle.Text = "Room Details";
 
                         detailsRoomNo.Text = r["room_no"]?.ToString() ?? "";
                         detailsRoomType.Text = r["room_type"]?.ToString() ?? "";
@@ -508,6 +532,7 @@ namespace BoardingHouse
         {
             if (_selectedRoomId <= 0) return;
 
+            int uid = CurrentUserId > 0 ? CurrentUserId : 1;
             bool hasActiveRental = HasActiveRental(_selectedRoomId);
 
             // Relationship rules:
@@ -540,27 +565,85 @@ namespace BoardingHouse
 
             try
             {
+                int roomId = _selectedRoomId;
+                object beforeDetails;
+                int beforeBhId = 0;
+                string beforeRoomNo = "";
+                string beforeRoomType = "";
+                int? beforeCapacity = null;
+                decimal? beforeRate = null;
+                string beforeNotes = "";
+                string beforeStatus = "";
+
                 using (var conn = DbConnectionFactory.CreateConnection())
-                using (var cmd = conn.CreateCommand())
                 {
                     EnsureOpen(conn);
 
-                    cmd.CommandText = @"
+                    using (var selectCmd = conn.CreateCommand())
+                    {
+                        selectCmd.CommandText = @"
+                        SELECT id, boarding_house_id, room_no, room_type, capacity, monthly_rate, status, notes
+                        FROM rooms
+                        WHERE id = @id
+                        LIMIT 1;
+                    ";
+                        selectCmd.Parameters.AddWithValue("@id", roomId);
+
+                        using (var reader = selectCmd.ExecuteReader())
+                        {
+                            if (!reader.Read())
+                            {
+                                MessageBox.Show("Room not found.", "Info",
+                                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                                return;
+                            }
+
+                            beforeDetails = BuildRoomAuditDetailsFromReader(reader);
+                            beforeBhId = reader["boarding_house_id"] == DBNull.Value ? 0 : Convert.ToInt32(reader["boarding_house_id"]);
+                            beforeRoomNo = reader["room_no"]?.ToString() ?? "";
+                            beforeRoomType = reader["room_type"]?.ToString() ?? "";
+                            beforeCapacity = reader["capacity"] == DBNull.Value ? null : Convert.ToInt32(reader["capacity"]);
+                            beforeRate = reader["monthly_rate"] == DBNull.Value ? null : Convert.ToDecimal(reader["monthly_rate"], CultureInfo.InvariantCulture);
+                            beforeStatus = reader["status"]?.ToString() ?? "";
+                            beforeNotes = reader["notes"] == DBNull.Value ? "" : reader["notes"]?.ToString() ?? "";
+                        }
+                    }
+
+                    using (var cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandText = @"
                         UPDATE rooms
                         SET status = @st, updated_at = NOW()
                         WHERE id = @id
                         LIMIT 1;
                     ";
-                    cmd.Parameters.AddWithValue("@st", newStatus);
-                    cmd.Parameters.AddWithValue("@id", _selectedRoomId);
 
-                    int affected = cmd.ExecuteNonQuery();
-                    if (affected <= 0)
-                    {
-                        MessageBox.Show("No changes saved.", "Info",
-                            MessageBoxButtons.OK, MessageBoxIcon.Information);
-                        return;
+                        cmd.Parameters.AddWithValue("@st", newStatus);
+                        cmd.Parameters.AddWithValue("@id", roomId);
+
+                        int affected = cmd.ExecuteNonQuery();
+                        if (affected <= 0)
+                        {
+                            MessageBox.Show("No changes saved.", "Info",
+                                MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            return;
+                        }
                     }
+
+                    var afterDetails = BuildRoomAuditDetails(
+                        roomId,
+                        beforeBhId,
+                        beforeRoomNo,
+                        beforeRoomType,
+                        beforeCapacity,
+                        beforeRate,
+                        newStatus,
+                        beforeNotes);
+                    AuditLogger.Log(uid, "UPDATE", "rooms", roomId, new
+                    {
+                        before = beforeDetails,
+                        after = afterDetails
+                    });
                 }
 
                 // refresh UI
@@ -610,13 +693,13 @@ namespace BoardingHouse
                 EnsureOpen(conn);
 
                 cmd.CommandText = @"
-                        SELECT t.lastname, t.firstname, t.middlename
+                        SELECT o.full_name, o.lastname, o.firstname, o.middlename
                         FROM rentals r
-                        JOIN tenants t ON t.id = r.tenant_id
+                        JOIN occupants o ON o.id = r.occupant_id
                         WHERE r.room_id = @roomId
                           AND r.status = 'ACTIVE'
                           AND (r.end_date IS NULL OR r.end_date >= CURDATE())
-                        ORDER BY t.lastname, t.firstname;
+                        ORDER BY o.lastname, o.firstname;
                     ";
                 cmd.Parameters.AddWithValue("@roomId", roomId);
 
@@ -624,13 +707,18 @@ namespace BoardingHouse
                 using var reader = cmd.ExecuteReader();
                 while (reader.Read())
                 {
-                    string last = (reader["lastname"]?.ToString() ?? "").Trim();
-                    string first = (reader["firstname"]?.ToString() ?? "").Trim();
-                    string middle = (reader["middlename"]?.ToString() ?? "").Trim();
-                    string full = $"{last}, {first}";
-                    if (!string.IsNullOrWhiteSpace(middle))
-                        full += $" {middle}";
-                    detailsTenantsList.Items.Add(full.Trim(' ', ','));
+                    string fullName = (reader["full_name"]?.ToString() ?? "").Trim();
+                    if (string.IsNullOrWhiteSpace(fullName))
+                    {
+                        string last = (reader["lastname"]?.ToString() ?? "").Trim();
+                        string first = (reader["firstname"]?.ToString() ?? "").Trim();
+                        string middle = (reader["middlename"]?.ToString() ?? "").Trim();
+                        fullName = $"{last}, {first}";
+                        if (!string.IsNullOrWhiteSpace(middle))
+                            fullName += $" {middle}";
+                    }
+
+                    detailsTenantsList.Items.Add(fullName.Trim(' ', ','));
                     found = true;
                 }
 
@@ -652,6 +740,36 @@ namespace BoardingHouse
         {
             if (conn.State != ConnectionState.Open)
                 conn.Open();
+        }
+
+        private int GetBoardingHouseIdForRoom(int roomId)
+        {
+            if (roomId <= 0) return 0;
+
+            try
+            {
+                using var conn = DbConnectionFactory.CreateConnection();
+                using var cmd = conn.CreateCommand();
+                EnsureOpen(conn);
+
+                cmd.CommandText = @"
+                    SELECT boarding_house_id
+                    FROM rooms
+                    WHERE id = @roomId
+                    LIMIT 1;
+                ";
+                cmd.Parameters.AddWithValue("@roomId", roomId);
+
+                var result = cmd.ExecuteScalar();
+                if (result == null || result == DBNull.Value)
+                    return 0;
+
+                return Convert.ToInt32(result);
+            }
+            catch
+            {
+                return 0;
+            }
         }
 
         private void CenterAddRoomModal()
@@ -835,6 +953,17 @@ namespace BoardingHouse
             decimal rate = addRoomRateNum.Value;
             string status = addRoomStatusCb.SelectedItem?.ToString() ?? "AVAILABLE";
             string notes = (addRoomNotesTxt.Text ?? "").Trim();
+            int uid = CurrentUserId > 0 ? CurrentUserId : 1;
+            var roomDetails = new
+            {
+                boarding_house_id = bhId,
+                room_no = roomNo,
+                room_type = type,
+                capacity,
+                monthly_rate = rate,
+                status,
+                notes = string.IsNullOrWhiteSpace(notes) ? null : notes
+            };
 
             try
             {
@@ -878,11 +1007,17 @@ namespace BoardingHouse
                     cmd.Parameters.AddWithValue("@notes", string.IsNullOrWhiteSpace(notes) ? (object)DBNull.Value : notes);
 
                     cmd.ExecuteNonQuery();
+
+                    using (var idCmd = conn.CreateCommand())
+                    {
+                        idCmd.CommandText = "SELECT LAST_INSERT_ID();";
+                        long newRoomId = Convert.ToInt64(idCmd.ExecuteScalar());
+                        AuditLogger.Log(uid, "CREATE", "rooms", newRoomId, roomDetails);
+                    }
                 }
 
                 HideAddRoomModal();
 
-                // refresh list (and keep current BH selection consistent)
                 _selectedBhId = bhId;
                 cbBoardingHouses.SelectedValue = bhId;
                 LoadRoomsTiles();
@@ -917,11 +1052,6 @@ namespace BoardingHouse
 
         }
 
-        private void button2_Click(object sender, EventArgs e)
-        {
-
-        }
-
         private void flpRooms_Paint(object sender, PaintEventArgs e)
         {
 
@@ -930,6 +1060,27 @@ namespace BoardingHouse
         private void manageTenantsModal_Paint(object sender, PaintEventArgs e)
         {
 
+        }
+
+
+        private void addTenantBtn_Click(object sender, EventArgs e)
+        {
+            SoundClicked.operationsBtn();
+            int bhId = _selectedBhId;
+
+            if (bhId <= 0 && _selectedRoomId > 0)
+                bhId = GetBoardingHouseIdForRoom(_selectedRoomId);
+
+            if (bhId <= 0 && cbBoardingHouses.SelectedValue != null &&
+                int.TryParse(cbBoardingHouses.SelectedValue.ToString(), out int currentBh))
+            {
+                bhId = currentBh;
+            }
+
+            if (FindForm() is not MainLayout main)
+                return;
+
+            main.OpenAddTenantModalFromRooms(bhId);
         }
 
 
@@ -949,6 +1100,8 @@ namespace BoardingHouse
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
+
+            int uid = CurrentUserId > 0 ? CurrentUserId : 1;
 
             try
             {
@@ -984,6 +1137,25 @@ namespace BoardingHouse
                         return;
                     }
 
+                    // Resolve occupant_id from selected tenant_id
+                    cmd.Parameters.Clear();
+                    cmd.CommandText = @"
+                SELECT occupant_id
+                FROM tenant_occupant_map
+                WHERE tenant_id = @tenantId
+                LIMIT 1;
+            ";
+                    cmd.Parameters.AddWithValue("@tenantId", _selectedTenantId);
+
+                    var occObj = cmd.ExecuteScalar();
+                    int occupantId = (occObj == null || occObj == DBNull.Value) ? 0 : Convert.ToInt32(occObj);
+                    if (occupantId <= 0)
+                    {
+                        MessageBox.Show("This tenant has no linked occupant record.", "Action Denied",
+                            MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return;
+                    }
+
                     // Active tenants count (ACTIVE rentals)
                     cmd.Parameters.Clear();
                     cmd.CommandText = @"
@@ -1009,11 +1181,11 @@ namespace BoardingHouse
                     cmd.CommandText = @"
                 SELECT COUNT(*)
                 FROM rentals
-                WHERE tenant_id = @tenantId
+                WHERE occupant_id = @occupantId
                   AND status = 'ACTIVE'
                   AND (end_date IS NULL OR end_date >= CURDATE());
             ";
-                    cmd.Parameters.AddWithValue("@tenantId", _selectedTenantId);
+                    cmd.Parameters.AddWithValue("@occupantId", occupantId);
 
                     int tenantActive = Convert.ToInt32(cmd.ExecuteScalar() ?? 0);
                     if (tenantActive > 0)
@@ -1026,19 +1198,38 @@ namespace BoardingHouse
                     cmd.Parameters.Clear();
                     cmd.CommandText = @"
                         INSERT INTO rentals
-                            (tenant_id, room_id, start_date, end_date, monthly_rate, deposit_amount,
+                            (occupant_id, room_id, start_date, end_date, monthly_rate, deposit_amount,
                              status, notes, created_by, created_at, updated_at)
                         VALUES
-                            (@tenantId, @roomId, CURDATE(), NULL, @rate, @deposit,
+                            (@occupantId, @roomId, CURDATE(), NULL, @rate, @deposit,
                              'ACTIVE', NULL, @createdBy, NOW(), NOW());
                     ";
-                    cmd.Parameters.AddWithValue("@tenantId", _selectedTenantId);
+                    cmd.Parameters.AddWithValue("@occupantId", occupantId);
                     cmd.Parameters.AddWithValue("@roomId", _selectedRoomId);
-                    cmd.Parameters.AddWithValue("@rate", roomRate);     
-                    cmd.Parameters.AddWithValue("@deposit", 0.00m);     
+                    cmd.Parameters.AddWithValue("@rate", roomRate);
+                    cmd.Parameters.AddWithValue("@deposit", 0.00m);
                     cmd.Parameters.AddWithValue("@createdBy", CurrentUserId > 0 ? (object)CurrentUserId : DBNull.Value);
 
                     cmd.ExecuteNonQuery();
+
+                    using (var idCmd = conn.CreateCommand())
+                    {
+                        idCmd.CommandText = "SELECT LAST_INSERT_ID();";
+                        long rentalId = Convert.ToInt64(idCmd.ExecuteScalar());
+                        var rentalDetails = new
+                        {
+                            occupant_id = occupantId,
+                            tenant_id = _selectedTenantId,
+                            room_id = _selectedRoomId,
+                            start_date = DateTime.Today,
+                            end_date = (DateTime?)null,
+                            monthly_rate = roomRate,
+                            deposit_amount = 0.00m,
+                            status = "ACTIVE",
+                            created_by = uid
+                        };
+                        AuditLogger.Log(uid, "CREATE", "rentals", rentalId, rentalDetails);
+                    }
 
                 }
 
@@ -1068,6 +1259,44 @@ namespace BoardingHouse
             return full.Trim();
         }
 
+        private static object BuildRoomAuditDetails(
+            int id,
+            int boardingHouseId,
+            string roomNo,
+            string roomType,
+            int? capacity,
+            decimal? monthlyRate,
+            string status,
+            string notes)
+        {
+            return new
+            {
+                id,
+                boarding_house_id = boardingHouseId,
+                room_no = roomNo,
+                room_type = roomType,
+                capacity,
+                monthly_rate = monthlyRate,
+                status,
+                notes = string.IsNullOrWhiteSpace(notes) ? null : notes
+            };
+        }
+
+        private static object BuildRoomAuditDetailsFromReader(MySqlDataReader reader)
+        {
+            string notes = reader["notes"] == DBNull.Value ? "" : reader["notes"]?.ToString() ?? "";
+            return BuildRoomAuditDetails(
+                reader["id"] == DBNull.Value ? 0 : Convert.ToInt32(reader["id"]),
+                reader["boarding_house_id"] == DBNull.Value ? 0 : Convert.ToInt32(reader["boarding_house_id"]),
+                reader["room_no"]?.ToString() ?? "",
+                reader["room_type"]?.ToString() ?? "",
+                reader["capacity"] == DBNull.Value ? null : (int?)Convert.ToInt32(reader["capacity"]),
+                reader["monthly_rate"] == DBNull.Value ? null : (decimal?)Convert.ToDecimal(reader["monthly_rate"], CultureInfo.InvariantCulture),
+                reader["status"]?.ToString() ?? "",
+                notes
+            );
+        }
+
         private void flpRooms_Paint_1(object sender, PaintEventArgs e)
         {
 
@@ -1078,94 +1307,12 @@ namespace BoardingHouse
 
         }
 
-        private void button2_Click_2(object sender, EventArgs e)
+        private void button1_Click_1(object sender, EventArgs e)
         {
-            SoundClicked.operationsBtn();
-            if (_selectedRoomId <= 0)
-            {
-                MessageBox.Show("Please select a room first.", "Info",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
 
-            // Block delete if ACTIVE rental exists
-            if (HasActiveRental(_selectedRoomId))
-            {
-                MessageBox.Show(
-                    "This room has an ACTIVE rental.\n\nEnd the rental first before deleting the room.",
-                    "Action Denied",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Warning
-                );
-                return;
-            }
-
-            var confirm = MessageBox.Show(
-                "Are you sure you want to delete this room?\nThis action cannot be undone.",
-                "Confirm Delete",
-                MessageBoxButtons.YesNo,
-                MessageBoxIcon.Warning
-            );
-
-            if (confirm != DialogResult.Yes)
-                return;
-
-            try
-            {
-                int bhId = _selectedBhId;
-
-                using (var conn = DbConnectionFactory.CreateConnection())
-                using (var cmd = conn.CreateCommand())
-                {
-                    EnsureOpen(conn);
-
-                    // get bhId for refresh safety
-                    cmd.CommandText = @"
-                SELECT boarding_house_id
-                FROM rooms
-                WHERE id = @id
-                LIMIT 1;
-            ";
-                    cmd.Parameters.AddWithValue("@id", _selectedRoomId);
-
-                    var bhObj = cmd.ExecuteScalar();
-                    if (bhObj != null && bhObj != DBNull.Value)
-                        bhId = Convert.ToInt32(bhObj);
-
-                    cmd.Parameters.Clear();
-                    cmd.CommandText = @"
-                DELETE FROM rooms
-                WHERE id = @id
-                LIMIT 1;
-            ";
-                    cmd.Parameters.AddWithValue("@id", _selectedRoomId);
-
-                    int affected = cmd.ExecuteNonQuery();
-                    if (affected <= 0)
-                    {
-                        MessageBox.Show("Room not found or already deleted.", "Info",
-                            MessageBoxButtons.OK, MessageBoxIcon.Information);
-                        return;
-                    }
-                }
-
-                _selectedRoomId = 0;
-                detailsModal.Visible = false;
-
-                _selectedBhId = bhId;
-                LoadRoomsTiles();
-
-                MessageBox.Show("Room deleted successfully.", "Success",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Failed to delete room.\n" + ex.Message,
-                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
         }
 
-        private void button3_Click(object sender, EventArgs e)
+        private void updateRoomBtn_Click(object sender, EventArgs e)
         {
             SoundClicked.operationsBtn();
             if (_selectedRoomId <= 0)
@@ -1214,35 +1361,54 @@ namespace BoardingHouse
                 return;
             }
 
+            int uid = CurrentUserId > 0 ? CurrentUserId : 1;
+
             try
             {
-                int bhId = 0;
+                object beforeDetails;
+                int beforeBhId = 0;
+                string beforeStatus = "";
 
                 using (var conn = DbConnectionFactory.CreateConnection())
                 using (var cmd = conn.CreateCommand())
                 {
                     EnsureOpen(conn);
 
-                    // Get BH context of this room
-                    cmd.CommandText = @"
-                SELECT boarding_house_id
+                    using (var beforeCmd = conn.CreateCommand())
+                    {
+                        beforeCmd.CommandText = @"
+                SELECT id, boarding_house_id, room_no, room_type, capacity, monthly_rate, status, notes
                 FROM rooms
                 WHERE id = @id
                 LIMIT 1;
             ";
-                    cmd.Parameters.AddWithValue("@id", _selectedRoomId);
+                        beforeCmd.Parameters.AddWithValue("@id", _selectedRoomId);
 
-                    var bhObj = cmd.ExecuteScalar();
-                    if (bhObj == null || bhObj == DBNull.Value)
+                        using (var reader = beforeCmd.ExecuteReader())
+                        {
+                            if (!reader.Read())
+                            {
+                                MessageBox.Show("Room not found.", "Info",
+                                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                                return;
+                            }
+
+                            beforeDetails = BuildRoomAuditDetailsFromReader(reader);
+                            beforeBhId = reader["boarding_house_id"] == DBNull.Value ? 0 : Convert.ToInt32(reader["boarding_house_id"]);
+                            beforeStatus = reader["status"]?.ToString() ?? "";
+                        }
+                    }
+
+                    if (beforeBhId <= 0)
                     {
-                        MessageBox.Show("Room not found.", "Info",
+                        MessageBox.Show("Room booking context not found.", "Info",
                             MessageBoxButtons.OK, MessageBoxIcon.Information);
                         return;
                     }
-                    bhId = Convert.ToInt32(bhObj);
+
+                    int bhId = beforeBhId;
 
                     // Prevent duplicate room_no in same BH (excluding this room)
-                    cmd.Parameters.Clear();
                     cmd.CommandText = @"
                 SELECT COUNT(*)
                 FROM rooms
@@ -1279,8 +1445,6 @@ namespace BoardingHouse
 
                     if (activeRentalCount > 0)
                     {
-                        // allow notes only, or block entirely (choose one)
-                        // Here we BLOCK structural changes:
                         MessageBox.Show(
                             "This room has an ACTIVE rental.\n" +
                             "You cannot update room number/type/capacity/rate while occupied.\n\n" +
@@ -1324,6 +1488,22 @@ namespace BoardingHouse
                     _selectedBhId = bhId; // keep list aligned
                 }
 
+                var afterDetails = BuildRoomAuditDetails(
+                    _selectedRoomId,
+                    beforeBhId,
+                    roomNo,
+                    type,
+                    capacity,
+                    rate,
+                    beforeStatus,
+                    notes
+                );
+                AuditLogger.Log(uid, "UPDATE", "rooms", _selectedRoomId, new
+                {
+                    before = beforeDetails,
+                    after = afterDetails
+                });
+
                 LoadRoomDetails(_selectedRoomId);
                 LoadRoomsTiles();
 
@@ -1337,9 +1517,671 @@ namespace BoardingHouse
             }
         }
 
-        private void button1_Click_1(object sender, EventArgs e)
+        private void deleteRoomBtn_Click(object sender, EventArgs e)
+        {
+            SoundClicked.operationsBtn();
+            if (_selectedRoomId <= 0)
+            {
+                MessageBox.Show("Please select a room first.", "Info",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            if (HasActiveRental(_selectedRoomId))
+            {
+                MessageBox.Show(
+                    "This room has an ACTIVE rental.\n\nEnd the rental first before deleting the room.",
+                    "Action Denied",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning
+                );
+                return;
+            }
+
+            var confirm = MessageBox.Show(
+                "Are you sure you want to delete this room?\nThis action cannot be undone.",
+                "Confirm Delete",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Warning
+            );
+
+            if (confirm != DialogResult.Yes)
+                return;
+
+            int uid = CurrentUserId > 0 ? CurrentUserId : 1;
+
+            try
+            {
+                int bhId = _selectedBhId;
+                object deletedDetails;
+
+                using (var conn = DbConnectionFactory.CreateConnection())
+                {
+                    EnsureOpen(conn);
+
+                    using (var selectCmd = conn.CreateCommand())
+                    {
+                        selectCmd.CommandText = @"
+                SELECT id, boarding_house_id, room_no, room_type, capacity, monthly_rate, status, notes
+                FROM rooms
+                WHERE id = @id
+                LIMIT 1;
+            ";
+                        selectCmd.Parameters.AddWithValue("@id", _selectedRoomId);
+
+                        using (var reader = selectCmd.ExecuteReader())
+                        {
+                            if (!reader.Read())
+                            {
+                                MessageBox.Show("Room not found.", "Info",
+                                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                                return;
+                            }
+
+                            bhId = reader["boarding_house_id"] == DBNull.Value ? bhId : Convert.ToInt32(reader["boarding_house_id"]);
+                            deletedDetails = BuildRoomAuditDetailsFromReader(reader);
+                        }
+                    }
+
+                    using (var cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandText = @"
+                DELETE FROM rooms
+                WHERE id = @id
+                LIMIT 1;
+            ";
+                        cmd.Parameters.AddWithValue("@id", _selectedRoomId);
+
+                        int affected = cmd.ExecuteNonQuery();
+                        if (affected <= 0)
+                        {
+                            MessageBox.Show("Room not found or already deleted.", "Info",
+                                MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            return;
+                        }
+                    }
+
+                    AuditLogger.Log(uid, "DELETE", "rooms", _selectedRoomId, new
+                    {
+                        deleted = deletedDetails
+                    });
+                }
+
+                _selectedRoomId = 0;
+                detailsModal.Visible = false;
+
+                _selectedBhId = bhId;
+                LoadRoomsTiles();
+
+                MessageBox.Show("Room deleted successfully.", "Success",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                string msg = ex.Message ?? string.Empty;
+                bool isFkDeleteError =
+                    msg.IndexOf("foreign key constraint fails", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    msg.IndexOf("Cannot delete or update parent row", StringComparison.OrdinalIgnoreCase) >= 0;
+
+                if (isFkDeleteError)
+                {
+                    MessageBox.Show(
+                        "This room cannot be deleted because it is referenced by existing rental history.\n\n" +
+                        "Although there are no active rentals, there are past rental records that reference this room.\n" +
+                        "For data integrity, this room will not be deleted.\n\n" +
+                        "Instead, mark the room as INACTIVE.",
+                        "Cannot Delete Room",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning
+                    );
+
+                    var setInactive = MessageBox.Show(
+                        "Would you like to mark this room as INACTIVE instead?",
+                        "Cannot Delete Room",
+                        MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Question
+                    );
+
+                    if (setInactive == DialogResult.Yes)
+                    {
+                        TrySetRoomStatus("INACTIVE");
+                        LoadRoomsTiles();
+                        if (_selectedRoomId > 0)
+                            LoadRoomDetails(_selectedRoomId);
+                    }
+
+                    return;
+                }
+
+                MessageBox.Show("Failed to delete room.\n" + ex.Message,
+                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void detailsNotes_Click(object sender, EventArgs e)
         {
 
         }
+
+        private void detailsTenantsList_Click(object sender, EventArgs e)
+        {
+            SoundClicked.operationsBtn();
+            if (_selectedRoomId <= 0)
+            {
+                MessageBox.Show("Select a room first.", "Required", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            EnsureViewTenantsContainer();
+            LoadTenantsReadOnlyPanel(_selectedRoomId);
+            viewTenantsPanel.Visible = true;
+            viewTenantsPanel.BringToFront();
+        }
+
+        private void LoadTenantsReadOnlyPanel(int roomId)
+        {
+            flpViewTenants.Controls.Clear();
+            var tenantRows = new List<TenantCardData>();
+            int maxTextWidth = 0;
+
+            try
+            {
+                using var conn = DbConnectionFactory.CreateConnection();
+                using var cmd = new MySqlCommand(@"
+                SELECT
+                    o.id AS occupant_id,
+                    r.id AS rental_id,
+                    o.full_name, o.lastname, o.firstname, o.middlename,
+                    o.contact_no, o.address, o.email, o.profile_path
+                FROM rentals r
+                JOIN occupants o ON o.id = r.occupant_id
+                WHERE r.room_id = @roomId
+                  AND r.status = 'ACTIVE'
+                  AND (r.end_date IS NULL OR r.end_date >= CURDATE())
+                ORDER BY o.lastname, o.firstname;", conn);
+
+                cmd.Parameters.AddWithValue("@roomId", roomId);
+
+                using var reader = cmd.ExecuteReader();
+                using var nameFont = new Font(FontFamily.GenericSansSerif, 10f, FontStyle.Bold);
+                using var regularFont = new Font(FontFamily.GenericSansSerif, 9f, FontStyle.Regular);
+
+                while (reader.Read())
+                {
+                    var fullName = (reader["full_name"]?.ToString() ?? "").Trim();
+                    if (string.IsNullOrWhiteSpace(fullName))
+                    {
+                        fullName = FormatTenantName(
+                            reader["lastname"]?.ToString(),
+                            reader["firstname"]?.ToString(),
+                            reader["middlename"]?.ToString());
+                    }
+
+                    var contact = NormalizeTenantField(reader["contact_no"]?.ToString());
+                    var address = NormalizeTenantField(reader["address"]?.ToString());
+                    var email = NormalizeTenantField(reader["email"]?.ToString());
+                    var profilePath = reader["profile_path"]?.ToString();
+                    int occupantId = SafeInt(reader["occupant_id"]);
+                    int rentalId = SafeInt(reader["rental_id"]);
+
+                    tenantRows.Add(new TenantCardData(
+                        occupantId,
+                        rentalId,
+                        fullName,
+                        contact,
+                        address,
+                        email,
+                        profilePath));
+
+                    maxTextWidth = Math.Max(maxTextWidth, MeasureTenantTextWidth(fullName, nameFont));
+                    maxTextWidth = Math.Max(maxTextWidth, MeasureTenantTextWidth($"Contact : {contact}", regularFont));
+                    maxTextWidth = Math.Max(maxTextWidth, MeasureTenantTextWidth($"Address : {address}", regularFont));
+                    if (!string.IsNullOrWhiteSpace(email) && email != "(none)")
+                        maxTextWidth = Math.Max(maxTextWidth, MeasureTenantTextWidth($"Email   : {email}", regularFont));
+                }
+            }
+            catch (Exception ex)
+            {
+                var label = BuildTenantEmptyMessage("Unable to load tenants.");
+                label.Text = $"Unable to load tenants: {ex.Message}";
+                flpViewTenants.Controls.Add(label);
+                ApplyUniformTenantCardWidth();
+                flpViewTenants.PerformLayout();
+                return;
+            }
+
+            EnsureTenantsModalWidthForContent(maxTextWidth);
+
+            if (tenantRows.Count == 0)
+            {
+                flpViewTenants.Controls.Add(BuildTenantEmptyMessage("No active tenants for this room."));
+            }
+            else
+            {
+                foreach (var tenant in tenantRows)
+                {
+                    flpViewTenants.Controls.Add(BuildTenantCardReadOnly(
+                        tenant.OccupantId,
+                        tenant.RentalId,
+                        tenant.FullName,
+                        tenant.Contact,
+                        tenant.Address,
+                        tenant.Email,
+                        tenant.ProfilePath));
+                }
+            }
+
+            ApplyUniformTenantCardWidth();
+            flpViewTenants.PerformLayout();
+        }
+
+        private Panel BuildTenantCardReadOnly(
+            int occupantId,
+            int rentalId,
+            string fullName,
+            string contact,
+            string address,
+            string email,
+            string profilePath)
+        {
+            var baseWidth = Math.Max(480, viewTenantsPanel.Width - 40);
+            if (baseWidth <= 0) baseWidth = 480;
+
+            var panel = new Panel
+            {
+                Width = baseWidth,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowOnly,
+                Margin = new Padding(10, 0, 10, 10),
+                Padding = new Padding(8),
+                BackColor = Color.White,
+                BorderStyle = BorderStyle.FixedSingle,
+                Cursor = Cursors.Hand,
+                Tag = new OccupantCardMeta(occupantId)
+            };
+
+            var picture = new PictureBox
+            {
+                Size = new Size(64, 64),
+                Location = new Point(8, 8),
+                SizeMode = PictureBoxSizeMode.Zoom,
+                Image = LoadProfileImage(profilePath)
+            };
+            panel.Controls.Add(picture);
+
+            var nameLabel = new Label
+            {
+                Name = "lblTenantName",
+                Text = fullName,
+                AutoSize = true,
+                AutoEllipsis = true,
+                Font = new Font(FontFamily.GenericSansSerif, 10f, FontStyle.Bold),
+                Location = new Point(84, 8)
+            };
+            panel.Controls.Add(nameLabel);
+
+            var contactLabel = new Label
+            {
+                Name = "lblTenantContact",
+                Text = $"Contact : {contact}",
+                AutoSize = true,
+                AutoEllipsis = true,
+                Location = new Point(84, 24)
+            };
+            panel.Controls.Add(contactLabel);
+
+            var addressLabel = new Label
+            {
+                Name = "lblTenantAddress",
+                Text = $"Address : {address}",
+                AutoSize = true,
+                AutoEllipsis = true,
+                Location = new Point(84, 40),
+                MaximumSize = new Size(panel.Width - 104, 0)
+            };
+            panel.Controls.Add(addressLabel);
+
+            if (!string.IsNullOrWhiteSpace(email) && email != "(none)")
+            {
+                var emailLabel = new Label
+                {
+                    Name = "lblTenantEmail",
+                    Text = $"Email   : {email}",
+                    AutoSize = true,
+                    AutoEllipsis = true,
+                    Location = new Point(84, 56),
+                    MaximumSize = new Size(panel.Width - 104, 0)
+                };
+                panel.Controls.Add(emailLabel);
+            }
+
+            panel.Click += TenantCard_Click;
+            foreach (Control c in panel.Controls)
+                c.Click += TenantCard_Click;
+
+            return panel;
+        }
+
+        private void TenantCard_Click(object? sender, EventArgs e)
+        {
+            if (sender is not Control clicked)
+                return;
+
+            var meta = clicked.Tag as OccupantCardMeta ?? clicked.Parent?.Tag as OccupantCardMeta;
+            if (meta == null)
+                return;
+
+            viewTenantsPanel.Visible = false;
+
+            if (FindForm() is not MainLayout main)
+                return;
+
+            if (meta.OccupantId <= 0)
+                return;
+
+            main.OpenOccupantDetailsFromRooms(meta.OccupantId);
+        }
+
+        private string FormatTenantName(string? last, string? first, string? middle)
+        {
+            var builder = new StringBuilder();
+            if (!string.IsNullOrWhiteSpace(last))
+                builder.Append(last.Trim());
+
+            if (!string.IsNullOrWhiteSpace(first))
+            {
+                if (builder.Length > 0)
+                    builder.Append(", ");
+
+                builder.Append(first.Trim());
+            }
+
+            if (!string.IsNullOrWhiteSpace(middle))
+            {
+                builder.Append(" ").Append(middle.Trim());
+            }
+
+            var result = builder.ToString().Trim();
+            return string.IsNullOrWhiteSpace(result) ? "(unknown tenant)" : result;
+        }
+
+        private static int SafeInt(object v)
+        {
+            if (v == null || v == DBNull.Value) return 0;
+            if (int.TryParse(v.ToString(), out int x)) return x;
+            return 0;
+        }
+
+        private static string NormalizeTenantField(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return "(none)";
+
+            return value.Trim();
+        }
+
+        private Image LoadProfileImage(string? path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                return (Image)_tenantPlaceholderImage.Clone();
+
+            try
+            {
+                if (!File.Exists(path))
+                    return (Image)_tenantPlaceholderImage.Clone();
+
+                using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                using var img = Image.FromStream(stream, true, true);
+                return new Bitmap(img);
+            }
+            catch
+            {
+                return (Image)_tenantPlaceholderImage.Clone();
+            }
+        }
+
+        private Image CreateTenantPlaceholderImage()
+        {
+            var bmp = new Bitmap(64, 64);
+            using var g = Graphics.FromImage(bmp);
+            g.Clear(Color.FromArgb(230, 230, 230));
+            using var pen = new Pen(Color.Gray, 1);
+            g.DrawRectangle(pen, 0, 0, bmp.Width - 1, bmp.Height - 1);
+            return bmp;
+        }
+
+        private Control BuildTenantEmptyMessage(string message)
+        {
+            return new Label
+            {
+                Text = message,
+                AutoSize = true,
+                ForeColor = Color.Gray,
+                Font = new Font(FontFamily.GenericSansSerif, 9f, FontStyle.Italic),
+                Margin = new Padding(10)
+            };
+        }
+
+        private void FlpViewTenants_SizeChanged(object sender, EventArgs e)
+        {
+            ApplyUniformTenantCardWidth();
+        }
+
+        private void EnsureTenantsModalWidthForContent(int requiredTextWidth)
+        {
+            if (viewTenantsPanel == null) return;
+
+            const int extraSpacing = 64 + 12 + 20 + 40;
+            var desiredWidth = Math.Max(viewTenantsPanel.Width, requiredTextWidth + extraSpacing);
+            var parentWidth = Parent?.ClientSize.Width ?? ClientSize.Width;
+            var maxAllowed = Math.Max(viewTenantsPanel.Width, Math.Max(360, parentWidth - viewTenantsPanel.Left - 20));
+            desiredWidth = Math.Min(desiredWidth, maxAllowed);
+
+            viewTenantsPanel.Width = Math.Max(viewTenantsPanel.Width, desiredWidth);
+            viewTenantsPanel.Left = Math.Max(0, (ClientSize.Width - viewTenantsPanel.Width) / 2);
+            ApplyUniformTenantCardWidth();
+        }
+
+        private void ApplyUniformTenantCardWidth()
+        {
+            if (flpViewTenants == null || flpViewTenants.Controls.Count == 0)
+                return;
+
+            var targetWidth = Math.Max(360, flpViewTenants.ClientSize.Width - 30);
+            if (targetWidth <= 0)
+                targetWidth = 360;
+
+            foreach (Control control in flpViewTenants.Controls)
+            {
+                if (control is Panel panel)
+                {
+                    panel.Width = targetWidth;
+                    LayoutTenantCard(panel);
+                }
+            }
+        }
+
+        private void LayoutTenantCard(Panel panel)
+        {
+            const int horizontalOffset = 84;
+            const int paddingBottom = 8;
+            var labelWidth = Math.Max(100, panel.Width - 104);
+
+            var nameLabel = panel.Controls["lblTenantName"] as Label;
+            var contactLabel = panel.Controls["lblTenantContact"] as Label;
+            var addressLabel = panel.Controls["lblTenantAddress"] as Label;
+            var emailLabel = panel.Controls["lblTenantEmail"] as Label;
+
+            if (nameLabel != null) nameLabel.MaximumSize = new Size(labelWidth, 0);
+            if (contactLabel != null) contactLabel.MaximumSize = new Size(labelWidth, 0);
+            if (addressLabel != null) addressLabel.MaximumSize = new Size(labelWidth, 0);
+            if (emailLabel != null) emailLabel.MaximumSize = new Size(labelWidth, 0);
+
+            int y = 8;
+            if (nameLabel != null)
+            {
+                nameLabel.Location = new Point(horizontalOffset, y);
+                y += nameLabel.PreferredHeight + 4;
+            }
+
+            if (contactLabel != null)
+            {
+                contactLabel.Location = new Point(horizontalOffset, y);
+                y += contactLabel.PreferredHeight + 4;
+            }
+
+            if (addressLabel != null)
+            {
+                addressLabel.Location = new Point(horizontalOffset, y);
+                y += addressLabel.PreferredHeight + 4;
+            }
+
+            if (emailLabel != null)
+            {
+                emailLabel.Location = new Point(horizontalOffset, y);
+                y += emailLabel.PreferredHeight + 4;
+            }
+
+            panel.Height = Math.Max(104, y + paddingBottom);
+        }
+
+        private static int MeasureTenantTextWidth(string text, Font font)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return 0;
+            return TextRenderer.MeasureText(text, font, Size.Empty, TextFormatFlags.SingleLine).Width;
+        }
+
+        private void EnsureViewTenantsContainer()
+        {
+            if (flpViewTenants == null)
+            {
+                flpViewTenants = new FlowLayoutPanel();
+                viewTenantsPanel.Controls.Add(flpViewTenants);
+                flpViewTenants.SendToBack();
+            }
+
+            flpViewTenants.Dock = DockStyle.Fill;
+            flpViewTenants.AutoScroll = true;
+            flpViewTenants.FlowDirection = FlowDirection.TopDown;
+            flpViewTenants.WrapContents = false;
+            flpViewTenants.Padding = new Padding(0, 20, 0, 10);
+            flpViewTenants.SizeChanged -= FlpViewTenants_SizeChanged;
+            flpViewTenants.SizeChanged += FlpViewTenants_SizeChanged;
+        }
+
+        private void ViewTanantCLoseBtn_Click(object sender, EventArgs e)
+        {
+            SoundClicked.operationsBtn();
+            viewTenantsPanel.Visible=false;
+        }
+
+        public void OpenRoomsForBoardingHouse(int bhId)
+        {
+            if (bhId <= 0) return;
+
+            if (cbBoardingHouses.DataSource == null || cbBoardingHouses.Items.Count == 0)
+                LoadBoardingHouseDropdown();
+
+            _selectedBhId = bhId;
+
+            cbBoardingHouses.SelectedValue = bhId;
+
+            _selectedRoomId = 0;
+            detailsModal.Visible = true;    
+            detailsModal.BringToFront();
+        }
+
+        public void OpenRoomsForTenantAssignedRoom(int roomId)
+        {
+            if (roomId <= 0)
+            {
+                MessageBox.Show("Tenant has no assigned room.", "Info",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            txtSearch.Text = "";
+            if (cbStatusFilter.Items.Count > 0)
+                cbStatusFilter.SelectedIndex = 0;
+
+            int bhId = GetBoardingHouseIdForRoom(roomId);
+            if (bhId <= 0)
+            {
+                MessageBox.Show("Unable to locate the boarding house for this room.", "Info",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            if (cbBoardingHouses.DataSource == null || cbBoardingHouses.Items.Count == 0)
+                LoadBoardingHouseDropdown();
+
+            _selectedBhId = bhId;
+
+            cbBoardingHouses.SelectedValue = bhId;
+
+            LoadRoomsTiles();
+
+            _selectedRoomId = roomId;
+            UpdateCardHighlights();
+            LoadRoomDetails(roomId);
+
+            detailsModal.Visible = true;
+            detailsModal.BringToFront();
+        }
+
+
+
+        public void OpenRoomsForBoardingHouse(int bhId, bool autoSelectFirstRoom = true)
+        {
+            if (bhId <= 0) return;
+
+            _pendingOpenBhId = bhId;
+            _pendingAutoSelectFirstRoom = autoSelectFirstRoom;
+
+            if (!IsHandleCreated) return;
+
+            ApplyPendingOpen();
+        }
+
+        private void ApplyPendingOpen()
+        {
+            if (_pendingOpenBhId <= 0) return;
+
+            int bhId = _pendingOpenBhId;
+            bool autoPick = _pendingAutoSelectFirstRoom;
+
+            _pendingOpenBhId = 0;
+
+            if (cbBoardingHouses.DataSource == null || cbBoardingHouses.Items.Count == 0)
+                LoadBoardingHouseDropdown();
+
+            cbBoardingHouses.SelectedValue = bhId;
+
+            _selectedBhId = bhId;
+            LoadRoomsTiles();
+
+            if (autoPick)
+                SelectFirstRoomAndOpenDetails();
+        }
+
+        private void SelectFirstRoomAndOpenDetails()
+        {
+            foreach (Control c in flpRooms.Controls)
+            {
+                if (c is Panel p && p.Tag is RoomCardMeta meta && meta.RoomId > 0)
+                {
+                    _selectedRoomId = meta.RoomId;
+                    UpdateCardHighlights();
+                    LoadRoomDetails(meta.RoomId);
+
+                    detailsModal.Visible = true;
+                    detailsModal.BringToFront();
+                    return;
+                }
+            }
+
+            detailsModal.Visible = false;
+        }
+
     }
 }

@@ -17,6 +17,18 @@ namespace BoardingHouse
             cbBoardingHouses = new ComboBox();
             dpBilling_Month = new DateTimePicker();
             panel1 = new Panel();
+            billingItemsModal = new Panel();
+            btnVoidCharge = new Button();
+            btnAddOrUpdateCharge = new Button();
+            labelBillingItemsHint = new Label();
+            nudChargeAmount = new NumericUpDown();
+            labelChargeAmountTitle = new Label();
+            txtChargeDescription = new TextBox();
+            labelChargeDescriptionTitle = new Label();
+            cbChargeType = new ComboBox();
+            labelChargeTypeTitle = new Label();
+            labelBillingItemsEditor = new Label();
+            closeBillingItemsBtn = new Button();
             label17 = new Label();
             clearSearchBtn = new Button();
             cbSearchBy = new ComboBox();
@@ -43,6 +55,7 @@ namespace BoardingHouse
             label1 = new Label();
             txtSearch = new TextBox();
             panel2 = new Panel();
+            manageBillItemsBtn = new Button();
             modalDialog = new Panel();
             label15 = new Label();
             lblVoidInfo = new Label();
@@ -76,6 +89,8 @@ namespace BoardingHouse
             label9 = new Label();
             topBar.SuspendLayout();
             panel1.SuspendLayout();
+            billingItemsModal.SuspendLayout();
+            ((ISupportInitialize)nudChargeAmount).BeginInit();
             ((ISupportInitialize)dgvDataSource).BeginInit();
             panel2.SuspendLayout();
             modalDialog.SuspendLayout();
@@ -151,6 +166,7 @@ namespace BoardingHouse
             // panel1
             // 
             panel1.BackColor = Color.WhiteSmoke;
+            panel1.Controls.Add(billingItemsModal);
             panel1.Controls.Add(label17);
             panel1.Controls.Add(clearSearchBtn);
             panel1.Controls.Add(cbSearchBy);
@@ -182,6 +198,140 @@ namespace BoardingHouse
             panel1.TabIndex = 3;
             panel1.Paint += panel1_Paint;
             // 
+            // billingItemsModal
+            // 
+            billingItemsModal.Controls.Add(btnVoidCharge);
+            billingItemsModal.Controls.Add(btnAddOrUpdateCharge);
+            billingItemsModal.Controls.Add(labelBillingItemsHint);
+            billingItemsModal.Controls.Add(nudChargeAmount);
+            billingItemsModal.Controls.Add(labelChargeAmountTitle);
+            billingItemsModal.Controls.Add(txtChargeDescription);
+            billingItemsModal.Controls.Add(labelChargeDescriptionTitle);
+            billingItemsModal.Controls.Add(cbChargeType);
+            billingItemsModal.Controls.Add(labelChargeTypeTitle);
+            billingItemsModal.Controls.Add(labelBillingItemsEditor);
+            billingItemsModal.Controls.Add(closeBillingItemsBtn);
+            billingItemsModal.Location = new Point(490, 22);
+            billingItemsModal.Name = "billingItemsModal";
+            billingItemsModal.Size = new Size(446, 515);
+            billingItemsModal.TabIndex = 36;
+            billingItemsModal.Visible = false;
+            // 
+            // btnVoidCharge
+            // 
+            btnVoidCharge.BackColor = Color.LightCoral;
+            btnVoidCharge.FlatStyle = FlatStyle.Flat;
+            btnVoidCharge.ForeColor = SystemColors.ButtonHighlight;
+            btnVoidCharge.Location = new Point(190, 305);
+            btnVoidCharge.Name = "btnVoidCharge";
+            btnVoidCharge.Size = new Size(150, 38);
+            btnVoidCharge.TabIndex = 36;
+            btnVoidCharge.Text = "Void Selected";
+            btnVoidCharge.UseVisualStyleBackColor = false;
+            btnVoidCharge.Click += btnVoidCharge_Click;
+            // 
+            // btnAddOrUpdateCharge
+            // 
+            btnAddOrUpdateCharge.BackColor = Color.LightSeaGreen;
+            btnAddOrUpdateCharge.FlatStyle = FlatStyle.Flat;
+            btnAddOrUpdateCharge.ForeColor = SystemColors.ButtonHighlight;
+            btnAddOrUpdateCharge.Location = new Point(20, 305);
+            btnAddOrUpdateCharge.Name = "btnAddOrUpdateCharge";
+            btnAddOrUpdateCharge.Size = new Size(150, 38);
+            btnAddOrUpdateCharge.TabIndex = 35;
+            btnAddOrUpdateCharge.Text = "Add / Update";
+            btnAddOrUpdateCharge.UseVisualStyleBackColor = false;
+            btnAddOrUpdateCharge.Click += btnAddOrUpdateCharge_Click;
+            // 
+            // labelBillingItemsHint
+            // 
+            labelBillingItemsHint.AutoSize = true;
+            labelBillingItemsHint.Font = new Font("Segoe UI", 8F, FontStyle.Italic, GraphicsUnit.Point, 0);
+            labelBillingItemsHint.Location = new Point(20, 277);
+            labelBillingItemsHint.Name = "labelBillingItemsHint";
+            labelBillingItemsHint.Size = new Size(404, 19);
+            labelBillingItemsHint.TabIndex = 34;
+            labelBillingItemsHint.Text = "Choose a charge and click Add / Update or select a row to edit.";
+            // 
+            // nudChargeAmount
+            // 
+            nudChargeAmount.DecimalPlaces = 2;
+            nudChargeAmount.Increment = new decimal(new int[] { 1, 0, 0, 131072 });
+            nudChargeAmount.Location = new Point(20, 238);
+            nudChargeAmount.Maximum = new decimal(new int[] { 1000000, 0, 0, 0 });
+            nudChargeAmount.Name = "nudChargeAmount";
+            nudChargeAmount.Size = new Size(150, 27);
+            nudChargeAmount.TabIndex = 33;
+            nudChargeAmount.ThousandsSeparator = true;
+            // 
+            // labelChargeAmountTitle
+            // 
+            labelChargeAmountTitle.AutoSize = true;
+            labelChargeAmountTitle.Location = new Point(20, 215);
+            labelChargeAmountTitle.Name = "labelChargeAmountTitle";
+            labelChargeAmountTitle.Size = new Size(65, 20);
+            labelChargeAmountTitle.TabIndex = 32;
+            labelChargeAmountTitle.Text = "Amount:";
+            // 
+            // txtChargeDescription
+            // 
+            txtChargeDescription.BorderStyle = BorderStyle.FixedSingle;
+            txtChargeDescription.Location = new Point(20, 141);
+            txtChargeDescription.Multiline = true;
+            txtChargeDescription.Name = "txtChargeDescription";
+            txtChargeDescription.PlaceholderText = "Add a short description";
+            txtChargeDescription.Size = new Size(320, 60);
+            txtChargeDescription.TabIndex = 31;
+            // 
+            // labelChargeDescriptionTitle
+            // 
+            labelChargeDescriptionTitle.AutoSize = true;
+            labelChargeDescriptionTitle.Location = new Point(20, 118);
+            labelChargeDescriptionTitle.Name = "labelChargeDescriptionTitle";
+            labelChargeDescriptionTitle.Size = new Size(88, 20);
+            labelChargeDescriptionTitle.TabIndex = 30;
+            labelChargeDescriptionTitle.Text = "Description:";
+            // 
+            // cbChargeType
+            // 
+            cbChargeType.DropDownStyle = ComboBoxStyle.DropDownList;
+            cbChargeType.FormattingEnabled = true;
+            cbChargeType.Items.AddRange(new object[] { "RENT", "ELECTRIC", "WATER", "INTERNET", "PENALTY", "OTHER" });
+            cbChargeType.Location = new Point(20, 78);
+            cbChargeType.Name = "cbChargeType";
+            cbChargeType.Size = new Size(220, 28);
+            cbChargeType.TabIndex = 29;
+            // 
+            // labelChargeTypeTitle
+            // 
+            labelChargeTypeTitle.AutoSize = true;
+            labelChargeTypeTitle.Location = new Point(20, 55);
+            labelChargeTypeTitle.Name = "labelChargeTypeTitle";
+            labelChargeTypeTitle.Size = new Size(94, 20);
+            labelChargeTypeTitle.TabIndex = 28;
+            labelChargeTypeTitle.Text = "Charge Type:";
+            // 
+            // labelBillingItemsEditor
+            // 
+            labelBillingItemsEditor.AutoSize = true;
+            labelBillingItemsEditor.Font = new Font("Segoe UI Semibold", 12F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            labelBillingItemsEditor.Location = new Point(20, 15);
+            labelBillingItemsEditor.Name = "labelBillingItemsEditor";
+            labelBillingItemsEditor.Size = new Size(175, 28);
+            labelBillingItemsEditor.TabIndex = 27;
+            labelBillingItemsEditor.Text = "Billing Item Editor";
+            // 
+            // closeBillingItemsBtn
+            // 
+            closeBillingItemsBtn.BackColor = Color.LightCoral;
+            closeBillingItemsBtn.Location = new Point(393, 0);
+            closeBillingItemsBtn.Name = "closeBillingItemsBtn";
+            closeBillingItemsBtn.Size = new Size(50, 34);
+            closeBillingItemsBtn.TabIndex = 26;
+            closeBillingItemsBtn.Text = "X";
+            closeBillingItemsBtn.UseVisualStyleBackColor = false;
+            closeBillingItemsBtn.Click += closeBillingItemsBtn_Click;
+            // 
             // label17
             // 
             label17.AutoSize = true;
@@ -194,7 +344,7 @@ namespace BoardingHouse
             // 
             // clearSearchBtn
             // 
-            clearSearchBtn.Location = new Point(269, 82);
+            clearSearchBtn.Location = new Point(245, 84);
             clearSearchBtn.Name = "clearSearchBtn";
             clearSearchBtn.Size = new Size(68, 28);
             clearSearchBtn.TabIndex = 34;
@@ -421,9 +571,9 @@ namespace BoardingHouse
             // 
             searchBtn.Location = new Point(195, 84);
             searchBtn.Name = "searchBtn";
-            searchBtn.Size = new Size(68, 28);
+            searchBtn.Size = new Size(44, 28);
             searchBtn.TabIndex = 11;
-            searchBtn.Text = "Search";
+            searchBtn.Text = "🔍";
             searchBtn.UseVisualStyleBackColor = true;
             searchBtn.Click += searchBtn_Click;
             // 
@@ -450,6 +600,7 @@ namespace BoardingHouse
             // panel2
             // 
             panel2.BackColor = Color.WhiteSmoke;
+            panel2.Controls.Add(manageBillItemsBtn);
             panel2.Controls.Add(modalDialog);
             panel2.Controls.Add(lvPaymentHistory);
             panel2.Controls.Add(btnVoidSelected);
@@ -463,6 +614,18 @@ namespace BoardingHouse
             panel2.Size = new Size(697, 874);
             panel2.TabIndex = 4;
             panel2.Paint += panel2_Paint;
+            // 
+            // manageBillItemsBtn
+            // 
+            manageBillItemsBtn.BackColor = Color.FromArgb(224, 224, 224);
+            manageBillItemsBtn.FlatStyle = FlatStyle.Flat;
+            manageBillItemsBtn.Location = new Point(293, 28);
+            manageBillItemsBtn.Name = "manageBillItemsBtn";
+            manageBillItemsBtn.Size = new Size(130, 32);
+            manageBillItemsBtn.TabIndex = 28;
+            manageBillItemsBtn.Text = "Manage Charges";
+            manageBillItemsBtn.UseVisualStyleBackColor = false;
+            manageBillItemsBtn.Click += manageBillItemsBtn_Click;
             // 
             // modalDialog
             // 
@@ -705,7 +868,7 @@ namespace BoardingHouse
             lvChargeList.TabIndex = 34;
             lvChargeList.UseCompatibleStateImageBehavior = false;
             lvChargeList.View = View.Details;
-            lvChargeList.Click += lvChargeList_Click;
+            lvChargeList.SelectedIndexChanged += lvChargeList_SelectedIndexChanged;
             // 
             // columnHeaderChargeType
             // 
@@ -751,6 +914,9 @@ namespace BoardingHouse
             topBar.PerformLayout();
             panel1.ResumeLayout(false);
             panel1.PerformLayout();
+            billingItemsModal.ResumeLayout(false);
+            billingItemsModal.PerformLayout();
+            ((ISupportInitialize)nudChargeAmount).EndInit();
             ((ISupportInitialize)dgvDataSource).EndInit();
             panel2.ResumeLayout(false);
             panel2.PerformLayout();
@@ -827,5 +993,18 @@ namespace BoardingHouse
         private Label label18;
         private Button btnVoidSelected;
         private Button btnViewReceipt;
+        private Label labelBillingItemsEditor;
+        private Label labelChargeTypeTitle;
+        private ComboBox cbChargeType;
+        private Label labelChargeDescriptionTitle;
+        private TextBox txtChargeDescription;
+        private Label labelChargeAmountTitle;
+        private NumericUpDown nudChargeAmount;
+        private Label labelBillingItemsHint;
+        private Button btnAddOrUpdateCharge;
+        private Button btnVoidCharge;
+        private Panel billingItemsModal;
+        private Button closeBillingItemsBtn;
+        private Button manageBillItemsBtn;
     }
 }

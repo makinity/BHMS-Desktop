@@ -35,6 +35,7 @@ namespace BoardingHouse
             pnlRoot.Padding = new Padding(14, 16, 14, 16);
             pnlRoot.Size = new Size(1917, 1300);
             pnlRoot.TabIndex = 0;
+            pnlRoot.Paint += pnlRoot_Paint;
             // 
             // pnlWebHost
             // 
@@ -65,10 +66,7 @@ namespace BoardingHouse
             // pictureBox1
             // 
             pictureBox1.Image = (Image)resources.GetObject("pictureBox1.Image");
-            pictureBox1.Location = new Point(
-                (this.ClientSize.Width - pictureBox1.Width) / 2,
-                (this.ClientSize.Height - pictureBox1.Height) / 2
-            );
+            pictureBox1.Location = new Point(150, 150);
             pictureBox1.Name = "pictureBox1";
             pictureBox1.Size = new Size(411, 266);
             pictureBox1.SizeMode = PictureBoxSizeMode.StretchImage;

@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("BoardingHouse")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+37123931f44549c023b0a7e1c2615630b52a9726")]
 [assembly: System.Reflection.AssemblyProductAttribute("BoardingHouse")]
 [assembly: System.Reflection.AssemblyTitleAttribute("BoardingHouse")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

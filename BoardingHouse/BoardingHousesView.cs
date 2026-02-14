@@ -10,6 +10,7 @@ using System.Windows.Forms;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using Mysqlx.Expr;
 
 
 namespace BoardingHouse
@@ -39,6 +40,65 @@ namespace BoardingHouse
             modal.Location = new Point(Math.Max(x, 0), Math.Max(y, 0));
         }
 
+        private void HideModals()
+        {
+            detailsModal.Visible = false;
+            AddModal.Visible = false;
+        }
+
+        private void ShowDetailsModal()
+        {
+            AddModal.Visible = false;
+            detailsModal.Visible = true;
+            detailsModal.BringToFront();
+        }
+
+        private void ShowAddModal()
+        {
+            detailsModal.Visible = false;
+            AddModal.Visible = true;
+            AddModal.BringToFront();
+        }
+
+        public void OpenDetailsById(int bhId)
+        {
+            if (bhId <= 0) return;
+
+            if (dgvBoardingHouses.DataSource == null || dgvBoardingHouses.Rows.Count == 0)
+                LoadBoardingHouses();
+
+            DataGridViewRow found = null;
+
+            foreach (DataGridViewRow row in dgvBoardingHouses.Rows)
+            {
+                if (row.Cells["colId"].Value == null) continue;
+
+                if (int.TryParse(row.Cells["colId"].Value.ToString(), out int id) && id == bhId)
+                {
+                    found = row;
+                    break;
+                }
+            }
+
+            if (found == null)
+            {
+                MessageBox.Show("Boarding house not found in list.", "Info",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            dgvBoardingHouses.ClearSelection();
+            found.Selected = true;
+            dgvBoardingHouses.CurrentCell = found.Cells["colName"];
+            dgvBoardingHouses.FirstDisplayedScrollingRowIndex = Math.Max(found.Index, 0);
+
+            dgvBoardingHouses_CellClick(
+                dgvBoardingHouses,
+                new DataGridViewCellEventArgs(found.Cells["colId"].ColumnIndex, found.Index)
+            );
+        }
+
+
         private void tableLayoutPanel1_Paint(object sender, PaintEventArgs e)
         {
 
@@ -52,12 +112,12 @@ namespace BoardingHouse
                 {
                     EnsureOpen(conn);
 
-                    cmd.CommandText = @"
+                    cmd.CommandText = $@"
                                         SELECT 
                                             bh.id,
                                             bh.name,
                                             bh.address,
-                                            COALESCE(o.full_name, '') AS owner_name,
+                                            {OwnerDisplaySql("o")} AS owner_name,
                                             COALESCE(o.contact_no, '') AS contact_no,
                                             bh.status,
                                             IFNULL(rc.total_rooms, 0) AS total_rooms,
@@ -187,7 +247,7 @@ namespace BoardingHouse
                 Name = "colOwner",
                 HeaderText = "Owner",
                 DataPropertyName = "owner_name",
-                Width = 160
+                Width = 160,
             });
 
             dgvBoardingHouses.Columns.Add(new DataGridViewTextBoxColumn
@@ -195,7 +255,8 @@ namespace BoardingHouse
                 Name = "colContact",
                 HeaderText = "Contact",
                 DataPropertyName = "contact_no",
-                Width = 130
+                Width = 130,
+                Visible = false
             });
 
             dgvBoardingHouses.Columns.Add(new DataGridViewTextBoxColumn
@@ -203,7 +264,8 @@ namespace BoardingHouse
                 Name = "colTotal",
                 HeaderText = "Total",
                 DataPropertyName = "total_rooms",
-                Width = 70
+                Width = 70,
+                Visible = false
             });
 
             dgvBoardingHouses.Columns.Add(new DataGridViewTextBoxColumn
@@ -211,7 +273,8 @@ namespace BoardingHouse
                 Name = "colAvailable",
                 HeaderText = "Available",
                 DataPropertyName = "available_rooms",
-                Width = 80
+                Width = 80,
+                Visible = false
             });
 
             dgvBoardingHouses.Columns.Add(new DataGridViewTextBoxColumn
@@ -219,6 +282,7 @@ namespace BoardingHouse
                 Name = "colLat",
                 HeaderText = "Lat",
                 DataPropertyName = "latitude",
+                Visible = false,
                 Width = 90
             });
 
@@ -227,7 +291,8 @@ namespace BoardingHouse
                 Name = "colLng",
                 HeaderText = "Lng",
                 DataPropertyName = "longitude",
-                Width = 90
+                Width = 90,
+                Visible = false
             });
 
             dgvBoardingHouses.Columns.Add(new DataGridViewTextBoxColumn
@@ -235,12 +300,13 @@ namespace BoardingHouse
                 Name = "colStatus",
                 HeaderText = "Status",
                 DataPropertyName = "status",
-                Width = 90
+                Width = 90,
+                Visible = false
             });
         }
 
 
-        private void BoardingHousesView_Load(object sender, EventArgs e)
+        private async void BoardingHousesView_Load(object sender, EventArgs e)
         {
             SetupBoardingHouseGrid();
             details_txtTotalRooms.ReadOnly = true;
@@ -252,9 +318,25 @@ namespace BoardingHouse
             details_txtTotalRooms.BackColor = SystemColors.Control;
             details_txtAvailableRooms.BackColor = SystemColors.Control;
 
-            SetupRoomsGrid();
+            LoadOwnersForCombo(cbOwner);
+            LoadOwnersForCombo(details_cbOwner);
             LoadBoardingHouses();
             LoadBoardingHouseStats();
+            await InitializeSingleMapAsync();
+            InitializeRoomsHostPanelUI();
+            RefreshRoomsHostPanel();
+        }
+
+        private async Task InitializeSingleMapAsync()
+        {
+            try
+            {
+                await PrepareSingleMapAsync();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine("[SingleMap] Init failed: " + ex.Message);
+            }
         }
 
         private void listView1_SelectedIndexChanged(object sender, EventArgs e)
@@ -267,12 +349,34 @@ namespace BoardingHouse
 
         }
 
-        private void addNewBtn_Click(object sender, EventArgs e)
+        private async void addNewBtn_Click(object sender, EventArgs e)
         {
             SoundClicked.operationsBtn();
-            CenterModal(AddModal);
-            AddModal.Visible = true;
+            LoadOwnersForCombo(cbOwner);
+            txtContactNo.Text = "";
+            _selectedBoardingHouseId = 0;           
+            _pendingSingleMarkerJson = null;     
+            await ResetSingleMapAsync();
+            ShowAddModal();
         }
+
+        private async Task ResetSingleMapAsync()
+        {
+            if (mapSingleWebView?.CoreWebView2 == null)
+                return;
+
+            try
+            {
+                await mapSingleWebView.ExecuteScriptAsync(
+                    "window.resetSingleMap && window.resetSingleMap();"
+                );
+            }
+            catch
+            {
+
+            }
+        }
+
 
         private void addNewCloseBtn_Click(object sender, EventArgs e)
         {
@@ -310,7 +414,8 @@ namespace BoardingHouse
                 }
 
                 // Optional fields
-                string ownerName = txtOwnerName.Text.Trim();
+                object ownerIdValue = cbOwner.SelectedValue ?? DBNull.Value;
+                long? ownerIdForDetails = NormalizeOwnerId(ownerIdValue);
                 string contactNo = txtContactNo.Text.Trim();
                 string thumbnailPath = txtThumbnailPath.Text.Trim();
 
@@ -318,11 +423,13 @@ namespace BoardingHouse
                 decimal? latitude = TryParseNullableDecimal(txtLatitude.Text);
                 decimal? longitude = TryParseNullableDecimal(txtLongitude.Text);
 
+                var auditDetails = BuildBoardingHouseAuditDetails(
+                    name, address, ownerIdForDetails, contactNo, thumbnailPath, latitude, longitude, "ACTIVE");
+
                 // Insert
                 using (var conn = DbConnectionFactory.CreateConnection())
                 {
                     EnsureOpen(conn);
-                    ulong? ownerId = ResolveOwnerId(conn, ownerName, contactNo);
 
                     using (var cmd = conn.CreateCommand())
                     {
@@ -335,7 +442,7 @@ namespace BoardingHouse
 
                         cmd.Parameters.AddWithValue("@name", name);
                         cmd.Parameters.AddWithValue("@address", address);
-                        cmd.Parameters.AddWithValue("@owner_id", ownerId.HasValue ? (object)ownerId.Value : DBNull.Value);
+                        cmd.Parameters.AddWithValue("@owner_id", ownerIdValue);
 
                         // thumbnail_path: store the relative path you decided (e.g., "Thumbnails\\bh_1.jpg")
                         cmd.Parameters.AddWithValue("@thumbnail_path", string.IsNullOrWhiteSpace(thumbnailPath) ? DBNull.Value : thumbnailPath);
@@ -344,6 +451,13 @@ namespace BoardingHouse
                         cmd.Parameters.AddWithValue("@longitude", longitude.HasValue ? longitude.Value : DBNull.Value);
 
                         cmd.ExecuteNonQuery();
+                    }
+
+                    using (var idCmd = conn.CreateCommand())
+                    {
+                        idCmd.CommandText = "SELECT LAST_INSERT_ID();";
+                        long newId = Convert.ToInt64(idCmd.ExecuteScalar());
+                        AuditLogger.Log(GetCurrentUserId(), "CREATE", "boarding_houses", newId, auditDetails);
                     }
                 }
 
@@ -422,17 +536,23 @@ namespace BoardingHouse
         }
 
         private int _selectedBoardingHouseId = 0;
+        private int _selectedBhId = 0;
         private void dgvBoardingHouses_CellClick(object sender, DataGridViewCellEventArgs e)
         {
             SoundClicked.operationsBtn();
-            if (e.RowIndex < 0) return; // header click
+            btnDelete.Visible = true;
+            btnUpdate.Visible = true;
+            viewRoomsBtn.Visible = true;
+            editBrowseBtn.Visible = true;
+
+            if (e.RowIndex < 0) return;
 
             var row = dgvBoardingHouses.Rows[e.RowIndex];
 
             _selectedBoardingHouseId = Convert.ToInt32(row.Cells["colId"].Value);
+            _selectedBhId = _selectedBoardingHouseId;
 
             details_txtBHName.Text = row.Cells["colName"].Value?.ToString() ?? "";
-            details_txtOwnerName.Text = row.Cells["colOwner"].Value?.ToString() ?? "";
             details_txtContactNo.Text = row.Cells["colContact"].Value?.ToString() ?? "";
             details_txtTotalRooms.Text = row.Cells["colTotal"].Value?.ToString() ?? "";
             details_txtAvailableRooms.Text = row.Cells["colAvailable"].Value?.ToString() ?? "";
@@ -454,12 +574,11 @@ namespace BoardingHouse
 
             LoadBoardingHouseDetailsFromDb(_selectedBoardingHouseId);
             LoadSelectedBhRoomCounts(_selectedBoardingHouseId);
+            LoadBhStats();
+            RefreshRoomsHostPanel();
 
-
-            // Show modal
-            CenterModal(detailsModal);
-            detailsModal.Visible = true;
-            detailsModal.BringToFront();
+            ShowDetailsModal();
+            viewSingleMap();
         }
 
         private void SetupStatusCombo()
@@ -479,11 +598,11 @@ namespace BoardingHouse
             {
                 EnsureOpen(conn);
 
-                cmd.CommandText = @"
+                cmd.CommandText = $@"
                                     SELECT 
                                         bh.address,
                                         bh.thumbnail_path,
-                                        COALESCE(o.full_name, '') AS owner_name,
+                                        bh.owner_id,
                                         COALESCE(o.contact_no, '') AS contact_no
                                     FROM boarding_houses bh
                                     LEFT JOIN owners o ON o.id = bh.owner_id
@@ -498,8 +617,9 @@ namespace BoardingHouse
 
                     details_txtAddress.Text = r["address"] == DBNull.Value ? "" : r["address"].ToString();
                     details_txtThumbnailPath.Text = r["thumbnail_path"] == DBNull.Value ? "" : r["thumbnail_path"].ToString();
-                    details_txtOwnerName.Text = r["owner_name"] == DBNull.Value ? "" : r["owner_name"].ToString();
                     details_txtContactNo.Text = r["contact_no"] == DBNull.Value ? "" : r["contact_no"].ToString();
+                    ulong? ownerId = r["owner_id"] == DBNull.Value ? null : Convert.ToUInt64(r["owner_id"]);
+                    LoadOwnersForCombo(details_cbOwner, ownerId);
                 }
             }
 
@@ -566,7 +686,7 @@ namespace BoardingHouse
                     return;
                 }
 
-                string ownerName = details_txtOwnerName.Text.Trim();
+                object ownerIdValue = details_cbOwner.SelectedValue ?? DBNull.Value;
                 string contactNo = details_txtContactNo.Text.Trim();
                 string thumbnailPath = details_txtThumbnailPath.Text.Trim();
 
@@ -581,7 +701,32 @@ namespace BoardingHouse
                 {
                     EnsureOpen(conn);
 
-                    ulong? ownerId = ResolveOwnerId(conn, ownerName, contactNo);
+                    object beforeDetails;
+                    using (var beforeCmd = conn.CreateCommand())
+                    {
+                        beforeCmd.CommandText = @"
+                    SELECT bh.name, bh.address, bh.owner_id,
+                           COALESCE(o.contact_no, '') AS contact_no,
+                           bh.status, bh.thumbnail_path, bh.latitude, bh.longitude
+                    FROM boarding_houses bh
+                    LEFT JOIN owners o ON o.id = bh.owner_id
+                    WHERE bh.id = @id
+                    LIMIT 1;
+                ";
+                        beforeCmd.Parameters.AddWithValue("@id", _selectedBoardingHouseId);
+
+                        using (var reader = beforeCmd.ExecuteReader())
+                        {
+                            if (!reader.Read())
+                            {
+                                MessageBox.Show("Boarding house not found.", "Info",
+                                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                                return;
+                            }
+
+                            beforeDetails = ReadBoardingHouseAuditDetails(reader);
+                        }
+                    }
 
                     using (var cmd = conn.CreateCommand())
                     {
@@ -603,7 +748,7 @@ namespace BoardingHouse
                         cmd.Parameters.AddWithValue("@name", name);
                         cmd.Parameters.AddWithValue("@address", address);
 
-                        cmd.Parameters.AddWithValue("@owner_id", ownerId.HasValue ? (object)ownerId.Value : DBNull.Value);
+                        cmd.Parameters.AddWithValue("@owner_id", ownerIdValue);
                         cmd.Parameters.AddWithValue("@status", status);
 
                         cmd.Parameters.AddWithValue("@thumbnail_path", string.IsNullOrWhiteSpace(thumbnailPath) ? (object)DBNull.Value : thumbnailPath);
@@ -620,6 +765,15 @@ namespace BoardingHouse
                             return;
                         }
                     }
+
+                    var ownerIdForDetails = NormalizeOwnerId(ownerIdValue);
+                    var afterDetails = BuildBoardingHouseAuditDetails(
+                        name, address, ownerIdForDetails, contactNo, thumbnailPath, latitude, longitude, status);
+                    AuditLogger.Log(GetCurrentUserId(), "UPDATE", "boarding_houses", _selectedBoardingHouseId, new
+                    {
+                        before = beforeDetails,
+                        after = afterDetails
+                    });
                 }
 
                 MessageBox.Show("Boarding House updated successfully!", "Success",
@@ -627,7 +781,6 @@ namespace BoardingHouse
 
                 LoadBoardingHouses();
                 LoadBoardingHouseStats();
-                detailsModal.Visible = false;
             }
             catch (MySqlException ex)
             {
@@ -663,30 +816,66 @@ namespace BoardingHouse
             try
             {
                 using (var conn = DbConnectionFactory.CreateConnection())
-                using (var cmd = conn.CreateCommand())
                 {
                     EnsureOpen(conn);
 
-                    cmd.CommandText = @"
+                    object deletedDetails;
+                    using (var selectCmd = conn.CreateCommand())
+                    {
+                        selectCmd.CommandText = @"
+                        SELECT bh.name, bh.address, bh.owner_id,
+                               COALESCE(o.contact_no, '') AS contact_no,
+                               bh.status, bh.thumbnail_path, bh.latitude, bh.longitude
+                        FROM boarding_houses bh
+                        LEFT JOIN owners o ON o.id = bh.owner_id
+                        WHERE bh.id = @id
+                        LIMIT 1;
+                    ";
+                        selectCmd.Parameters.AddWithValue("@id", _selectedBoardingHouseId);
+
+                        using (var reader = selectCmd.ExecuteReader())
+                        {
+                            if (!reader.Read())
+                            {
+                                MessageBox.Show("Boarding house not found.", "Info",
+                                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                                return;
+                            }
+
+                            deletedDetails = ReadBoardingHouseAuditDetails(reader);
+                        }
+                    }
+
+                    using (var cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandText = @"
                         DELETE FROM boarding_houses
                         WHERE id = @id
                         LIMIT 1;
                     ";
-                    cmd.Parameters.AddWithValue("@id", _selectedBoardingHouseId);
+                        cmd.Parameters.AddWithValue("@id", _selectedBoardingHouseId);
 
-                    int affected = cmd.ExecuteNonQuery();
-                    if (affected <= 0)
-                    {
-                        MessageBox.Show("Record not found or already deleted.", "Info",
-                            MessageBoxButtons.OK, MessageBoxIcon.Information);
-                        return;
+                        int affected = cmd.ExecuteNonQuery();
+                        if (affected <= 0)
+                        {
+                            MessageBox.Show("Record not found or already deleted.", "Info",
+                                MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            return;
+                        }
                     }
+
+                    AuditLogger.Log(GetCurrentUserId(), "DELETE", "boarding_houses", _selectedBoardingHouseId, new
+                    {
+                        deleted = deletedDetails
+                    });
                 }
 
                 MessageBox.Show("Boarding house deleted successfully.", "Success",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
 
                 _selectedBoardingHouseId = 0;
+                _selectedBhId = 0;
+                RefreshRoomsHostPanel();
                 LoadBoardingHouses();
                 LoadBoardingHouseStats();
                 detailsModal.Visible = false;
@@ -709,42 +898,76 @@ namespace BoardingHouse
                 conn.Open();
         }
 
-        private static ulong? ResolveOwnerId(MySqlConnection conn, string ownerName, string contactNo)
+        private static string OwnerDisplaySql(string alias)
         {
-            if (string.IsNullOrWhiteSpace(ownerName))
-                return null;
+            alias = (alias ?? "").Trim();
+            if (string.IsNullOrWhiteSpace(alias))
+                throw new ArgumentException("alias is required", nameof(alias));
 
+            return $@"TRIM(CONCAT(
+                COALESCE({alias}.lastname, ''), ', ',
+                COALESCE({alias}.firstname, ''),
+                CASE
+                  WHEN {alias}.middlename IS NULL OR {alias}.middlename = '' THEN ''
+                  ELSE CONCAT(' ', {alias}.middlename)
+                END
+            ))";
+        }
+
+        private void LoadOwnersForCombo(ComboBox combo, ulong? selectedOwnerId = null)
+        {
+            using (var conn = DbConnectionFactory.CreateConnection())
             using (var cmd = conn.CreateCommand())
             {
+                EnsureOpen(conn);
                 cmd.CommandText = @"
-                    SELECT id
+                    SELECT
+                        id,
+                        TRIM(CONCAT(
+                            COALESCE(lastname, ''), ', ',
+                            COALESCE(firstname, ''),
+                            CASE
+                              WHEN middlename IS NULL OR middlename = '' THEN ''
+                              ELSE CONCAT(' ', middlename)
+                            END
+                        )) AS display_name,
+                        COALESCE(contact_no, '') AS contact_no
                     FROM owners
-                    WHERE full_name = @full_name
-                      AND (
-                        (@contact IS NULL AND contact_no IS NULL)
-                        OR contact_no = @contact
-                      )
-                    LIMIT 1;
+                    WHERE status = 'ACTIVE'
+                    ORDER BY lastname, firstname;
                 ";
 
-                cmd.Parameters.AddWithValue("@full_name", ownerName);
-                cmd.Parameters.AddWithValue("@contact", string.IsNullOrWhiteSpace(contactNo) ? DBNull.Value : (object)contactNo);
+                var table = new DataTable();
+                using (var adapter = new MySqlDataAdapter(cmd))
+                {
+                    adapter.Fill(table);
+                }
 
-                var existing = cmd.ExecuteScalar();
-                if (existing != null && existing != DBNull.Value)
-                    return Convert.ToUInt64(existing);
+                combo.DisplayMember = "display_name";
+                combo.ValueMember = "id";
+                combo.DataSource = table;
 
-                cmd.Parameters.Clear();
-                cmd.CommandText = @"
-                    INSERT INTO owners (full_name, contact_no, status)
-                    VALUES (@full_name, @contact_no, 'ACTIVE');
-                ";
-                cmd.Parameters.AddWithValue("@full_name", ownerName);
-                cmd.Parameters.AddWithValue("@contact_no", string.IsNullOrWhiteSpace(contactNo) ? DBNull.Value : (object)contactNo);
-                cmd.ExecuteNonQuery();
-
-                return (ulong)cmd.LastInsertedId;
+                if (selectedOwnerId.HasValue)
+                {
+                    combo.SelectedValue = selectedOwnerId.Value;
+                }
+                else
+                {
+                    combo.SelectedIndex = -1;
+                }
             }
+        }
+
+        private void cbOwner_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (cbOwner.SelectedItem is DataRowView row)
+                txtContactNo.Text = row["contact_no"]?.ToString() ?? "";
+        }
+
+        private void details_cbOwner_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (details_cbOwner.SelectedItem is DataRowView row)
+                details_txtContactNo.Text = row["contact_no"]?.ToString() ?? "";
         }
 
         private void searchbtn_Click(object sender, EventArgs e)
@@ -764,12 +987,12 @@ namespace BoardingHouse
                 {
                     EnsureOpen(conn);
 
-                    cmd.CommandText = @"
+                    cmd.CommandText = $@"
                                     SELECT 
                                         bh.id,
                                         bh.name,
                                         bh.address,
-                                        COALESCE(o.full_name, '') AS owner_name,
+                                        {OwnerDisplaySql("o")} AS owner_name,
                                         COALESCE(o.contact_no, '') AS contact_no,
                                         bh.status,
                                         bh.total_rooms,
@@ -781,10 +1004,12 @@ namespace BoardingHouse
                                     WHERE
                                         bh.name LIKE @kw
                                         OR bh.address LIKE @kw
-                                        OR o.full_name LIKE @kw
+                                        OR CONCAT_WS(' ', o.firstname, o.middlename, o.lastname) LIKE @kw
+                                        OR CONCAT_WS(' ', o.lastname, o.firstname, o.middlename) LIKE @kw
+                                        OR {OwnerDisplaySql("o")} LIKE @kw
                                         OR o.contact_no LIKE @kw
                                     ORDER BY bh.id DESC;
-                                ";
+                                    ";
 
                     cmd.Parameters.AddWithValue("@kw", "%" + keyword + "%");
 
@@ -809,12 +1034,86 @@ namespace BoardingHouse
             }
         }
 
-        private async void viewMapBtn_Click(object sender, EventArgs e)
+        public async void viewSingleMap()
         {
-            SoundClicked.operationsBtn();
+            if (_selectedBoardingHouseId <= 0)
+            {
+                MessageBox.Show("Please select a boarding house first.", "Info",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
             try
             {
-                // collect markers (unchanged)
+                using (var conn = DbConnectionFactory.CreateConnection())
+                using (var cmd = conn.CreateCommand())
+                {
+                    EnsureOpen(conn);
+
+                    cmd.CommandText = @"
+                SELECT id, name, address, latitude, longitude, status
+                FROM boarding_houses
+                WHERE id = @id
+                LIMIT 1;
+            ";
+                    cmd.Parameters.AddWithValue("@id", _selectedBoardingHouseId);
+
+                    using (var r = cmd.ExecuteReader())
+                    {
+                        if (!r.Read())
+                        {
+                            MessageBox.Show("Boarding house not found.", "Info",
+                                MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            return;
+                        }
+
+                        if (r["latitude"] == DBNull.Value || r["longitude"] == DBNull.Value)
+                        {
+                            MessageBox.Show("This boarding house has no location set.", "Info",
+                                MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            return;
+                        }
+
+                        double lat = Convert.ToDouble(r["latitude"], CultureInfo.InvariantCulture);
+                        double lng = Convert.ToDouble(r["longitude"], CultureInfo.InvariantCulture);
+
+                        var marker = new
+                        {
+                            id = Convert.ToInt32(r["id"]),
+                            name = r["name"]?.ToString() ?? "",
+                            address = r["address"]?.ToString() ?? "",
+                            status = r["status"]?.ToString() ?? "",
+                            latitude = lat,
+                            longitude = lng
+                        };
+
+                        _pendingSingleMarkerJson =
+                            System.Text.Json.JsonSerializer.Serialize(marker);
+                    }
+                }
+
+                if (!await PrepareSingleMapAsync())
+                    return;
+
+                await Task.Delay(150);
+                await mapSingleWebView.ExecuteScriptAsync(
+                    "window.invalidateMap && window.invalidateMap();"
+                );
+
+                mapSingleModal.Visible = true;
+                mapSingleModal.BringToFront();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Failed to open map.\n" + ex.Message, "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private async void viewMapBtn_Click(object sender, EventArgs e)
+        {
+            try
+            {
                 var markers = new List<object>();
 
                 using (var conn = DbConnectionFactory.CreateConnection())
@@ -904,7 +1203,6 @@ namespace BoardingHouse
             await mapWebView.EnsureCoreWebView2Async();
             var core = mapWebView.CoreWebView2;
 
-            // IMPORTANT: mapping MUST be set before navigation (every time)
             core.SetVirtualHostNameToFolderMapping(
                 "appassets",
                 mapDir,
@@ -986,6 +1284,7 @@ namespace BoardingHouse
         {
             SoundClicked.operationsBtn();
             AddModal.Visible = false;
+            detailsModal.Visible = true;
         }
 
         private async void locateBtn_Click(object sender, EventArgs e)
@@ -1002,7 +1301,6 @@ namespace BoardingHouse
 
                 AddModal.Visible = false;
 
-                // Fix size after showing modal
                 await Task.Delay(150);
                 await mapLocatorWebView.ExecuteScriptAsync("window.invalidateMap && window.invalidateMap();");
             }
@@ -1017,8 +1315,7 @@ namespace BoardingHouse
         {
             SoundClicked.operationsBtn();
             mapLocatorModal.Visible = false;
-            CenterModal(AddModal);
-            AddModal.Visible = true;
+            ShowAddModal();
         }
 
         private async Task<bool> PrepareLocatorMapAsync()
@@ -1048,7 +1345,6 @@ namespace BoardingHouse
                         var raw = e.TryGetWebMessageAsString();
                         if (string.IsNullOrWhiteSpace(raw)) return;
 
-                        // raw is JSON string: {"latitude":..,"longitude":..,"address":".."}
                         using var doc = System.Text.Json.JsonDocument.Parse(raw);
 
                         double lat = 0;
@@ -1080,11 +1376,9 @@ namespace BoardingHouse
                     }
                 };
             }
-
-            // ✅ IMPORTANT: map local folder to a fake HTTPS host
             core.SetVirtualHostNameToFolderMapping(
                 "appassets",
-                mapDir, // MUST be Map folder
+                mapDir,
                 CoreWebView2HostResourceAccessKind.Allow
             );
 
@@ -1100,16 +1394,12 @@ namespace BoardingHouse
             txtLatitude.Text = locateLatTxt.Text;
 
             mapLocatorModal.Visible = false;
-            CenterModal(AddModal);
-            AddModal.Visible = true;
+            ShowAddModal();
         }
 
         private void button3_Click(object sender, EventArgs e)
         {
             SoundClicked.operationsBtn();
-            mapSingleModal.Visible = false;
-            CenterModal(detailsModal);
-            detailsModal.Visible = true;
         }
 
         private void btnViewMap_Click(object sender, EventArgs e)
@@ -1128,79 +1418,7 @@ namespace BoardingHouse
         {
             SoundClicked.operationsBtn();
 
-            if (_selectedBoardingHouseId <= 0)
-            {
-                MessageBox.Show("Please select a boarding house first.", "Info",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
-
-            try
-            {
-                using (var conn = DbConnectionFactory.CreateConnection())
-                using (var cmd = conn.CreateCommand())
-                {
-                    EnsureOpen(conn);
-
-                    cmd.CommandText = @"
-                SELECT id, name, address, latitude, longitude, status
-                FROM boarding_houses
-                WHERE id = @id
-                LIMIT 1;
-            ";
-                    cmd.Parameters.AddWithValue("@id", _selectedBoardingHouseId);
-
-                    using (var r = cmd.ExecuteReader())
-                    {
-                        if (!r.Read())
-                        {
-                            MessageBox.Show("Boarding house not found.", "Info",
-                                MessageBoxButtons.OK, MessageBoxIcon.Information);
-                            return;
-                        }
-
-                        if (r["latitude"] == DBNull.Value || r["longitude"] == DBNull.Value)
-                        {
-                            MessageBox.Show("This boarding house has no location set.", "Info",
-                                MessageBoxButtons.OK, MessageBoxIcon.Information);
-                            return;
-                        }
-
-                        double lat = Convert.ToDouble(r["latitude"], CultureInfo.InvariantCulture);
-                        double lng = Convert.ToDouble(r["longitude"], CultureInfo.InvariantCulture);
-
-                        var marker = new
-                        {
-                            id = Convert.ToInt32(r["id"]),
-                            name = r["name"]?.ToString() ?? "",
-                            address = r["address"]?.ToString() ?? "",
-                            status = r["status"]?.ToString() ?? "",
-                            latitude = lat,
-                            longitude = lng
-                        };
-
-                        _pendingSingleMarkerJson =
-                            System.Text.Json.JsonSerializer.Serialize(marker);
-                    }
-                }
-
-                if (!await PrepareSingleMapAsync())
-                    return;
-
-                await Task.Delay(150);
-                await mapSingleWebView.ExecuteScriptAsync(
-                    "window.invalidateMap && window.invalidateMap();"
-                );
-
-                CenterModal(mapSingleModal);
-                mapSingleModal.Visible = true;
-                mapSingleModal.BringToFront();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Failed to open map.\n" + ex.Message, "Error",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
+            
         }
 
         private async Task<bool> PrepareSingleMapAsync()
@@ -1215,7 +1433,7 @@ namespace BoardingHouse
                 return false;
             }
 
-            await mapSingleWebView.EnsureCoreWebView2Async();
+            await mapSingleWebView.EnsureCoreWebView2Async(null);
             var core = mapSingleWebView.CoreWebView2;
 
             core.SetVirtualHostNameToFolderMapping(
@@ -1261,26 +1479,185 @@ namespace BoardingHouse
 
         private void button4_Click(object sender, EventArgs e)
         {
-            if (_selectedBoardingHouseId <= 0)
-            {
-                MessageBox.Show("Please select a boarding house first.", "Info",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
 
-            _roomsBhId = _selectedBoardingHouseId;
-            _roomsBhName = details_txtBHName.Text.Trim();
-
-            lblRoomsFor.Text = $"Rooms for: {_roomsBhName}";
-            LoadRooms(_roomsBhId);
-
-            CenterModal(manageRoomsModal);
-            manageRoomsModal.Visible = true;
-            manageRoomsModal.BringToFront();
         }
 
         private void LoadRooms(int bhId)
         {
+            
+        }
+
+        private void InitializeRoomsHostPanelUI()
+        {
+            if (splitRooms != null)
+                return;
+
+            if (roomsHostPanel == null)
+                return;
+
+            splitRooms = new SplitContainer
+            {
+                Dock = DockStyle.Fill,
+                Orientation = Orientation.Vertical,
+            };
+
+            roomsLeftHeaderPanel = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 60,
+                Padding = new Padding(10, 6, 10, 6),
+                BackColor = Color.WhiteSmoke
+            };
+
+            lblRoomTitle = new Label
+            {
+                AutoSize = true,
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                Text = "Select a room",
+                Location = new Point(10, 6)
+            };
+
+            lblRoomMeta = new Label
+            {
+                AutoSize = true,
+                Font = new Font("Segoe UI", 8.5F, FontStyle.Regular),
+                Text = "",
+                Location = new Point(10, 30)
+            };
+
+            lblOccupancy = new Label
+            {
+                AutoSize = true,
+                Font = new Font("Segoe UI", 9F, FontStyle.Regular),
+                Text = "Occupancy: - / -",
+                Anchor = AnchorStyles.Top | AnchorStyles.Right
+            };
+
+            roomsLeftHeaderPanel.SizeChanged += (s, e) =>
+            {
+                lblOccupancy.Location = new Point(
+                    Math.Max(10, roomsLeftHeaderPanel.Width - lblOccupancy.Width - 10),
+                    18);
+            };
+            roomsLeftHeaderPanel.Controls.Add(lblRoomTitle);
+            roomsLeftHeaderPanel.Controls.Add(lblRoomMeta);
+            roomsLeftHeaderPanel.Controls.Add(lblOccupancy);
+            lblOccupancy.Location = new Point(
+                Math.Max(10, roomsLeftHeaderPanel.Width - lblOccupancy.Width - 10),
+                18);
+
+            dgvRoomTenants = new DataGridView
+            {
+                Dock = DockStyle.Fill,
+                ReadOnly = true,
+                AllowUserToAddRows = false,
+                AllowUserToDeleteRows = false,
+                AutoGenerateColumns = false,
+                RowHeadersVisible = false,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
+            };
+
+            if (dgvRoomTenants.Columns.Count == 0)
+            {
+                dgvRoomTenants.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Tenant Name" });
+                dgvRoomTenants.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Contact" });
+                dgvRoomTenants.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Rental Status" });
+                dgvRoomTenants.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Start Date" });
+                dgvRoomTenants.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "End Date" });
+            }
+
+            roomsRightHeaderPanel = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 40,
+                Padding = new Padding(10, 6, 10, 6),
+                BackColor = Color.WhiteSmoke
+            };
+
+            var lblRoomsHeader = new Label
+            {
+                AutoSize = true,
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                Text = "Rooms",
+                Location = new Point(10, 10)
+            };
+
+            roomsRightHeaderPanel.Controls.Add(lblRoomsHeader);
+
+            // ✅ Move existing button into this header panel
+            viewRoomsBtn.Visible = true;
+            viewRoomsBtn.Parent = roomsRightHeaderPanel;
+            viewRoomsBtn.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            viewRoomsBtn.Location = new Point(
+                roomsRightHeaderPanel.Width - viewRoomsBtn.Width - 10,
+                6
+            );
+
+            // Auto reposition when resized
+            roomsRightHeaderPanel.SizeChanged += (s, e) =>
+            {
+                viewRoomsBtn.Location = new Point(
+                    roomsRightHeaderPanel.Width - viewRoomsBtn.Width - 10,
+                    6
+                );
+            };
+
+
+            flpRooms = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                AutoScroll = true,
+                WrapContents = true,
+                Padding = new Padding(10)
+            };
+
+            splitRooms.Panel1.Controls.Add(flpRooms);
+            splitRooms.Panel1.Controls.Add(roomsRightHeaderPanel);
+            splitRooms.Panel2.Controls.Add(dgvRoomTenants);
+            splitRooms.Panel2.Controls.Add(roomsLeftHeaderPanel);
+
+            roomsHostPanel.Controls.Clear();
+            roomsHostPanel.Controls.Add(splitRooms);
+
+            // ✅ SAFE SplitterDistance AFTER layout has a real width
+            roomsHostPanel.BeginInvoke(new Action(() =>
+            {
+                if (splitRooms == null) return;
+
+                int desiredLeft = 500;
+                int minLeft = splitRooms.Panel1MinSize;
+                int maxLeft = splitRooms.Width - splitRooms.Panel2MinSize;
+
+                if (maxLeft <= minLeft) return; // not enough space yet
+
+                int safeLeft = Math.Max(minLeft, Math.Min(desiredLeft, maxLeft));
+                splitRooms.SplitterDistance = safeLeft;
+            }));
+        }
+
+
+        private void RefreshRoomsHostPanel()
+        {
+            _selectedRoomId = 0;
+            ClearLeftTenantView();
+            LoadRoomsIntoRightPanel();
+        }
+
+        private void LoadRoomsIntoRightPanel()
+        {
+            if (flpRooms == null)
+                return;
+
+            flpRooms.SuspendLayout();
+            flpRooms.Controls.Clear();
+
+            if (_selectedBhId <= 0)
+            {
+                flpRooms.ResumeLayout();
+                return;
+            }
+
             try
             {
                 using (var conn = DbConnectionFactory.CreateConnection())
@@ -1289,104 +1666,337 @@ namespace BoardingHouse
                     EnsureOpen(conn);
 
                     cmd.CommandText = @"
-                SELECT id, room_no, room_type, monthly_rate, capacity, status
-                FROM rooms
-                WHERE boarding_house_id = @bhId
-                ORDER BY room_no ASC;
-            ";
-                    cmd.Parameters.AddWithValue("@bhId", bhId);
+                        SELECT id, room_no, status
+                        FROM rooms
+                        WHERE boarding_house_id = @bhId
+                        ORDER BY room_no ASC;
+                    ";
+                    cmd.Parameters.AddWithValue("@bhId", _selectedBhId);
 
-                    var table = new DataTable();
-                    using (var adapter = new MySqlDataAdapter(cmd))
+                    using (var r = cmd.ExecuteReader())
                     {
-                        adapter.Fill(table);
-                    }
+                        while (r.Read())
+                        {
+                            int roomId = Convert.ToInt32(r["id"]);
+                            string roomNo = r["room_no"]?.ToString() ?? "";
+                            string status = r["status"]?.ToString() ?? "";
 
-                    dgvRooms.SuspendLayout();
-                    try
-                    {
-                        dgvRooms.DataSource = table;
-                    }
-                    finally
-                    {
-                        dgvRooms.ResumeLayout();
+                            var card = BuildRoomMiniCard(roomId, roomNo, status);
+                            flpRooms.Controls.Add(card);
+                        }
                     }
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Failed to load rooms.\n" + ex.Message, "Error",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("Failed to load rooms.\n" + ex.Message,
+                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                flpRooms.ResumeLayout();
+                HighlightSelectedRoomCards();
             }
         }
 
-        private void SetupRoomsGrid()
+        private Control BuildRoomMiniCard(int roomId, string roomNo, string status)
         {
-            if (_roomsGridSetupDone) return;
-            dgvRooms.AutoGenerateColumns = false;
-            dgvRooms.AllowUserToAddRows = false;
-            dgvRooms.AllowUserToDeleteRows = false;
-            dgvRooms.ReadOnly = true;
-            dgvRooms.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
-            dgvRooms.MultiSelect = false;
-            dgvRooms.RowHeadersVisible = false;
+            Color baseColor = GetStatusColor(status);
+            var meta = new RoomCardMeta(roomId, baseColor);
 
-            dgvRooms.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
-            dgvRooms.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.None;
-
-            dgvRooms.Columns.Clear();
-
-            dgvRooms.Columns.Add(new DataGridViewTextBoxColumn
+            var chip = new Label
             {
-                Name = "colRoomId",
-                HeaderText = "ID",
-                DataPropertyName = "id",
-                Width = 60
-            });
+                AutoSize = true,
+                BackColor = DarkenColor(baseColor, 0.25),
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Padding = new Padding(8, 2, 8, 2),
+                Text = status ?? "",
+                TextAlign = ContentAlignment.MiddleCenter
+            };
 
-            dgvRooms.Columns.Add(new DataGridViewTextBoxColumn
+            var panel = new Panel
             {
-                Name = "colRoomNo",
-                HeaderText = "Room No",
-                DataPropertyName = "room_no",
-                Width = 120
-            });
+                Width = 245,
+                Height = 110,
+                Margin = new Padding(10),
+                BackColor = baseColor,
+                Cursor = Cursors.Hand,
+                Tag = meta
+            };
 
-            dgvRooms.Columns.Add(new DataGridViewTextBoxColumn
+            panel.BorderStyle = BorderStyle.FixedSingle;
+            panel.Paint += RoomMiniCard_Paint;
+
+            var lblTitle = new Label
             {
-                Name = "colRoomType",
-                HeaderText = "Type",
-                DataPropertyName = "room_type",
-                Width = 160
-            });
+                Text = $"Room: {roomNo}",
+                AutoSize = false,
+                Dock = DockStyle.Top,
+                Height = 28,
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                TextAlign = ContentAlignment.MiddleLeft,
+                Padding = new Padding(6, 0, 6, 0),
+                BackColor = Color.Transparent
+            };
 
-            dgvRooms.Columns.Add(new DataGridViewTextBoxColumn
-            {
-                Name = "colRate",
-                HeaderText = "Monthly Rate",
-                DataPropertyName = "monthly_rate",
-                Width = 120,
-                DefaultCellStyle = new DataGridViewCellStyle { Format = "N2" }
-            });
+            panel.Controls.Add(lblTitle);
+            panel.Controls.Add(chip);
+            chip.BringToFront();
 
-            dgvRooms.Columns.Add(new DataGridViewTextBoxColumn
-            {
-                Name = "colCapacity",
-                HeaderText = "Capacity",
-                DataPropertyName = "capacity",
-                Width = 90
-            });
+            panel.Click += RoomMiniCard_Click;
+            foreach (Control c in panel.Controls)
+                c.Click += RoomMiniCard_Click;
 
-            dgvRooms.Columns.Add(new DataGridViewTextBoxColumn
-            {
-                Name = "colRoomStatus",
-                HeaderText = "Status",
-                DataPropertyName = "status",
-                Width = 120
-            });
+            PositionChip(panel, chip);
+            panel.SizeChanged += (s, e) => PositionChip(panel, chip);
 
-            _roomsGridSetupDone = true;
+            ApplyRoomCardStyling(panel, meta);
+            return panel;
         }
+
+        private void RoomMiniCard_Click(object sender, EventArgs e)
+        {
+            Control clicked = sender as Control;
+            if (clicked == null) return;
+
+            int roomId = 0;
+            if (clicked.Tag is RoomCardMeta directMeta)
+                roomId = directMeta.RoomId;
+            else if (clicked.Parent != null && clicked.Parent.Tag is RoomCardMeta parentMeta)
+                roomId = parentMeta.RoomId;
+
+            if (roomId <= 0) return;
+
+            _selectedRoomId = roomId;
+            HighlightSelectedRoomCards();
+            ShowRoomTenants(_selectedRoomId);
+        }
+
+        private void HighlightSelectedRoomCards()
+        {
+            if (flpRooms == null) return;
+
+            foreach (Control control in flpRooms.Controls)
+            {
+                if (control is Panel panel && panel.Tag is RoomCardMeta meta)
+                {
+                    ApplyRoomCardStyling(panel, meta);
+                    panel.Invalidate();
+                }
+            }
+        }
+
+        private void ApplyRoomCardStyling(Panel card, RoomCardMeta meta)
+        {
+            bool isSelected = meta.RoomId == _selectedRoomId;
+            card.Padding = new Padding(10);
+            card.BorderStyle = isSelected ? BorderStyle.Fixed3D : BorderStyle.FixedSingle;
+            card.BackColor = isSelected ? LightenColor(meta.BaseColor, 0.06f) : meta.BaseColor;
+        }
+
+        private void RoomMiniCard_Paint(object sender, PaintEventArgs e)
+        {
+            if (sender is Panel card && card.Tag is RoomCardMeta meta && meta.RoomId == _selectedRoomId)
+            {
+                using var brush = new SolidBrush(Color.FromArgb(0, 120, 215));
+                e.Graphics.FillRectangle(brush, 0, 0, 6, card.Height);
+            }
+        }
+
+        private void ShowRoomTenants(int roomId)
+        {
+            if (roomId <= 0)
+            {
+                ClearLeftTenantView();
+                return;
+            }
+
+            try
+            {
+                using (var conn = DbConnectionFactory.CreateConnection())
+                using (var cmd = conn.CreateCommand())
+                {
+                    EnsureOpen(conn);
+                    cmd.CommandText = @"
+                        SELECT room_no, room_type, capacity, monthly_rate, status
+                        FROM rooms
+                        WHERE id = @id
+                        LIMIT 1;
+                    ";
+                    cmd.Parameters.AddWithValue("@id", roomId);
+
+                    using (var r = cmd.ExecuteReader())
+                    {
+                        if (!r.Read())
+                        {
+                            ClearLeftTenantView();
+                            return;
+                        }
+
+                        string roomNo = r["room_no"]?.ToString() ?? "";
+                        string roomType = r["room_type"]?.ToString() ?? "";
+                        string status = r["status"]?.ToString() ?? "";
+                        int capacity = r["capacity"] == DBNull.Value ? 0 : Convert.ToInt32(r["capacity"]);
+
+                        decimal rate = 0m;
+                        if (r["monthly_rate"] != DBNull.Value)
+                            rate = Convert.ToDecimal(r["monthly_rate"], CultureInfo.InvariantCulture);
+
+                        lblRoomTitle.Text = $"Room: {roomNo}";
+                        lblRoomMeta.Text = $"Type: {roomType} | Rate: {rate:N2} | Status: {status}";
+                        lblOccupancy.Text = $"Occupancy: - / {capacity}";
+                    }
+                }
+
+                LoadTenants(roomId);
+            }
+            catch
+            {
+                ClearLeftTenantView();
+            }
+        }
+
+        private void LoadTenants(int roomId)
+        {
+            if (dgvRoomTenants == null) return;
+
+            try
+            {
+                dgvRoomTenants.Rows.Clear();
+                if (roomId <= 0) return;
+
+                using (var conn = DbConnectionFactory.CreateConnection())
+                using (var cmd = conn.CreateCommand())
+                {
+                    EnsureOpen(conn);
+
+                    cmd.CommandText = @"
+                SELECT
+                    COALESCE(
+                        CASE WHEN o.occupant_type = 'TENANT'  THEN t.full_name END,
+                        CASE WHEN o.occupant_type = 'STUDENT' THEN s.full_name END,
+                        o.full_name
+                    ) AS occupant_name,
+                    COALESCE(
+                        CASE WHEN o.occupant_type = 'TENANT'  THEN t.contact_no END,
+                        CASE WHEN o.occupant_type = 'STUDENT' THEN s.contact_no END,
+                        o.contact_no,
+                        ''
+                    ) AS contact_no,
+                    r.status AS rental_status,
+                    r.start_date,
+                    r.end_date
+                FROM rentals r
+                INNER JOIN occupants o ON o.id = r.occupant_id
+                LEFT JOIN tenant_occupant_map tom ON tom.occupant_id = o.id
+                LEFT JOIN tenants t ON t.id = tom.tenant_id
+                LEFT JOIN student_occupant_map som ON som.occupant_id = o.id
+                LEFT JOIN students s ON s.id = som.student_id
+                WHERE r.room_id = @roomId
+                  AND r.status = 'ACTIVE'
+                  AND (r.end_date IS NULL OR r.end_date >= CURDATE())
+                ORDER BY r.start_date DESC;
+            ";
+
+                    cmd.Parameters.AddWithValue("@roomId", roomId);
+
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        bool hasRows = false;
+
+                        while (reader.Read())
+                        {
+                            hasRows = true;
+
+                            string tenantName = reader["occupant_name"]?.ToString() ?? "";
+                            string contact = reader["contact_no"]?.ToString() ?? "";
+                            string rentalStatus = reader["rental_status"]?.ToString() ?? "";
+
+                            string startDate = reader["start_date"] == DBNull.Value
+                                ? ""
+                                : Convert.ToDateTime(reader["start_date"]).ToString("yyyy-MM-dd");
+
+                            string endDate = reader["end_date"] == DBNull.Value
+                                ? ""
+                                : Convert.ToDateTime(reader["end_date"]).ToString("yyyy-MM-dd");
+
+                            dgvRoomTenants.Rows.Add(tenantName, contact, rentalStatus, startDate, endDate);
+                        }
+
+                        if (!hasRows)
+                            dgvRoomTenants.Rows.Add("(No active tenants)", "", "", "", "");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                dgvRoomTenants.Rows.Clear();
+                dgvRoomTenants.Rows.Add("(Failed to load tenants)", "", "", "", "");
+                // optional debug:
+                // MessageBox.Show(ex.Message);
+            }
+        }
+
+
+        private void ClearLeftTenantView()
+        {
+            if (lblRoomTitle != null)
+                lblRoomTitle.Text = "Select a room";
+            if (lblRoomMeta != null)
+                lblRoomMeta.Text = "";
+            if (lblOccupancy != null)
+                lblOccupancy.Text = "Occupancy: - / -";
+            dgvRoomTenants?.Rows.Clear();
+        }
+
+        private static Color GetStatusColor(string status)
+        {
+            switch ((status ?? "").Trim().ToUpperInvariant())
+            {
+                case "AVAILABLE": return Color.FromArgb(210, 255, 210);
+                case "OCCUPIED": return Color.FromArgb(255, 230, 180);
+                case "MAINTENANCE": return Color.FromArgb(220, 220, 220);
+                case "INACTIVE": return Color.FromArgb(240, 200, 200);
+                default: return Color.White;
+            }
+        }
+
+        private static Color DarkenColor(Color color, double factor)
+        {
+            int r = (int)(color.R * (1 - factor));
+            int g = (int)(color.G * (1 - factor));
+            int b = (int)(color.B * (1 - factor));
+            return Color.FromArgb(Math.Max(0, r), Math.Max(0, g), Math.Max(0, b));
+        }
+
+        private static Color LightenColor(Color color, double factor)
+        {
+            int r = color.R + (int)((255 - color.R) * factor);
+            int g = color.G + (int)((255 - color.G) * factor);
+            int b = color.B + (int)((255 - color.B) * factor);
+            return Color.FromArgb(Math.Min(255, r), Math.Min(255, g), Math.Min(255, b));
+        }
+
+        private static void PositionChip(Control host, Control chip)
+        {
+            int x = Math.Max(6, host.Width - chip.Width - 8);
+            int y = 6;
+            chip.Location = new Point(x, y);
+        }
+
+        private sealed class RoomCardMeta
+        {
+            public int RoomId { get; }
+            public Color BaseColor { get; }
+
+            public RoomCardMeta(int roomId, Color baseColor)
+            {
+                RoomId = roomId;
+                BaseColor = baseColor;
+            }
+        }
+
 
         private void LoadSelectedBhRoomCounts(int bhId)
         {
@@ -1440,18 +2050,13 @@ namespace BoardingHouse
 
         private void closeManageRoom_Click(object sender, EventArgs e)
         {
-            manageRoomsModal.Visible = false;
+            
         }
 
         private int _selectedRoomId = 0;
         private void dgvRooms_CellClick(object sender, DataGridViewCellEventArgs e)
         {
-            if (e.RowIndex < 0) return;
-
-            var row = dgvRooms.Rows[e.RowIndex];
-            _selectedRoomId = row.Cells["colRoomId"].Value == null ? 0 : Convert.ToInt32(row.Cells["colRoomId"].Value);
-
-            panel9.Visible = true;
+            
         }
 
         private void UpdateSelectedRoomStatus(string newStatus)
@@ -1472,12 +2077,53 @@ namespace BoardingHouse
 
             try
             {
+                int roomId = _selectedRoomId;
+                int boardingHouseId = _roomsBhId;
+                object beforeRoomDetails;
+                string roomNo = "";
+                string roomType = "";
+                decimal? monthlyRate = null;
+                int? capacity = null;
+
                 using (var conn = DbConnectionFactory.CreateConnection())
-                using (var cmd = conn.CreateCommand())
                 {
                     EnsureOpen(conn);
 
-                    cmd.CommandText = @"
+                    using (var selectCmd = conn.CreateCommand())
+                    {
+                        selectCmd.CommandText = @"
+                        SELECT id, boarding_house_id, room_no, room_type, monthly_rate, capacity, status
+                        FROM rooms
+                        WHERE id = @roomId
+                          AND boarding_house_id = @bhId
+                        LIMIT 1;
+                    ";
+                        selectCmd.Parameters.AddWithValue("@roomId", roomId);
+                        selectCmd.Parameters.AddWithValue("@bhId", boardingHouseId);
+
+                        using (var reader = selectCmd.ExecuteReader())
+                        {
+                            if (!reader.Read())
+                            {
+                                MessageBox.Show("Room not found or already updated.", "Info",
+                                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                                return;
+                            }
+
+                            roomNo = reader["room_no"]?.ToString() ?? "";
+                            roomType = reader["room_type"]?.ToString() ?? "";
+                            monthlyRate = reader["monthly_rate"] == DBNull.Value ? null : Convert.ToDecimal(reader["monthly_rate"]);
+                            capacity = reader["capacity"] == DBNull.Value ? null : Convert.ToInt32(reader["capacity"]);
+                            string statusBefore = reader["status"]?.ToString() ?? "";
+
+                            beforeRoomDetails = BuildRoomAuditDetails(
+                                roomId, boardingHouseId, roomNo, roomType, monthlyRate, capacity, statusBefore);
+                        }
+                    }
+
+                    using (var cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandText = @"
                         UPDATE rooms
                         SET status = @status
                         WHERE id = @roomId
@@ -1485,17 +2131,31 @@ namespace BoardingHouse
                         LIMIT 1;
                     ";
 
-                    cmd.Parameters.AddWithValue("@status", newStatus);
-                    cmd.Parameters.AddWithValue("@roomId", _selectedRoomId);
-                    cmd.Parameters.AddWithValue("@bhId", _roomsBhId);
+                        cmd.Parameters.AddWithValue("@status", newStatus);
+                        cmd.Parameters.AddWithValue("@roomId", roomId);
+                        cmd.Parameters.AddWithValue("@bhId", boardingHouseId);
 
-                    int affected = cmd.ExecuteNonQuery();
-                    if (affected <= 0)
-                    {
-                        MessageBox.Show("Room not found or already updated.", "Info",
-                            MessageBoxButtons.OK, MessageBoxIcon.Information);
-                        return;
+                        int affected = cmd.ExecuteNonQuery();
+                        if (affected <= 0)
+                        {
+                            MessageBox.Show("Room not found or already updated.", "Info",
+                                MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            return;
+                        }
                     }
+
+                    var afterRoomDetails = BuildRoomAuditDetails(
+                        roomId, boardingHouseId, roomNo, roomType, monthlyRate, capacity, newStatus);
+                    AuditLogger.Log(GetCurrentUserId(), "UPDATE", "rooms", roomId, new
+                    {
+                        before = beforeRoomDetails,
+                        after = afterRoomDetails,
+                        context = new
+                        {
+                            boarding_house_id = _roomsBhId,
+                            boarding_house_name = _roomsBhName
+                        }
+                    });
                 }
 
                 LoadRooms(_roomsBhId);
@@ -1519,34 +2179,22 @@ namespace BoardingHouse
 
         private void btnMarkAvailable_Click(object sender, EventArgs e)
         {
-            UpdateSelectedRoomStatus("AVAILABLE");
-            panel9.Visible = false;
-            SoundClicked.operationsBtn();
-            MessageBox.Show("Status Updated");
+            
         }
 
         private void btnMarkOccupied_Click(object sender, EventArgs e)
         {
-            UpdateSelectedRoomStatus("OCCUPIED");
-            panel9.Visible = false;
-            SoundClicked.operationsBtn();
-            MessageBox.Show("Status Updated");
+            
         }
 
         private void btnMarkMaintenance_Click(object sender, EventArgs e)
         {
-            UpdateSelectedRoomStatus("MAINTENANCE");
-            panel9.Visible = false;
-            SoundClicked.operationsBtn();
-            MessageBox.Show("Status Updated");
+            
         }
 
         private void btnMarkInactive_Click(object sender, EventArgs e)
         {
-            UpdateSelectedRoomStatus("INACTIVE");
-            panel9.Visible = false;
-            SoundClicked.operationsBtn();
-            MessageBox.Show("Status Updated");
+            
         }
 
         private void manageRoomsModal_Paint(object sender, PaintEventArgs e)
@@ -1585,6 +2233,259 @@ namespace BoardingHouse
                 details_picThumbnail.Image = Image.FromFile(destPath);
             }
         }
+
+        private static object BuildBoardingHouseAuditDetails(
+            string name,
+            string address,
+            long? ownerId,
+            string contactNo,
+            string thumbnailPath,
+            decimal? latitude,
+            decimal? longitude,
+            string status)
+        {
+            string? normalizedThumbnail = string.IsNullOrWhiteSpace(thumbnailPath) ? null : thumbnailPath;
+            return new
+            {
+                name,
+                address,
+                owner_id = ownerId,
+                contact_no = contactNo,
+                thumbnail_path = normalizedThumbnail,
+                latitude,
+                longitude,
+                status
+            };
+        }
+
+        private static object ReadBoardingHouseAuditDetails(MySqlDataReader reader)
+        {
+            long? ownerId = reader["owner_id"] == DBNull.Value ? null : Convert.ToInt64(reader["owner_id"]);
+            decimal? latitude = reader["latitude"] == DBNull.Value ? null : Convert.ToDecimal(reader["latitude"]);
+            decimal? longitude = reader["longitude"] == DBNull.Value ? null : Convert.ToDecimal(reader["longitude"]);
+
+            string GetString(string key)
+            {
+                if (reader[key] == DBNull.Value) return "";
+                return reader[key]?.ToString() ?? "";
+            }
+
+            return BuildBoardingHouseAuditDetails(
+                GetString("name"),
+                GetString("address"),
+                ownerId,
+                GetString("contact_no"),
+                GetString("thumbnail_path"),
+                latitude,
+                longitude,
+                GetString("status"));
+        }
+
+        private static long? NormalizeOwnerId(object value)
+        {
+            if (value == null || value == DBNull.Value) return null;
+
+            return value switch
+            {
+                long l => l,
+                int i => i,
+                short s => s,
+                byte b => b,
+                ulong ul => Convert.ToInt64(ul),
+                uint ui => Convert.ToInt64(ui),
+                ushort us => us,
+                decimal d => Convert.ToInt64(d),
+                string s when long.TryParse(s, out var parsed) => parsed,
+                _ => Convert.ToInt64(value)
+            };
+        }
+
+        private static object BuildRoomAuditDetails(
+            int id,
+            int boardingHouseId,
+            string roomNo,
+            string roomType,
+            decimal? monthlyRate,
+            int? capacity,
+            string status)
+        {
+            return new
+            {
+                id,
+                boarding_house_id = boardingHouseId,
+                room_no = roomNo,
+                room_type = roomType,
+                monthly_rate = monthlyRate,
+                capacity,
+                status
+            };
+        }
+
+        public void OpenAddModalForOwner(long ownerId)
+        {
+            LoadOwnersForCombo(cbOwner);
+
+            cbOwner.SelectedValue = ownerId;
+
+            if (cbOwner.SelectedItem is System.Data.DataRowView row)
+                txtContactNo.Text = row["contact_no"]?.ToString() ?? "";
+
+            txtBHName.Text = "";
+            txtAddress.Text = "";
+            txtLatitude.Text = "";
+            txtLongitude.Text = "";
+            txtThumbnailPath.Text = "";
+            picThumbnail.Image?.Dispose();
+            picThumbnail.Image = null;
+
+            ShowAddModal();
+        }
+
+
+        private int GetCurrentUserId()
+        {
+            return 1;
+        }
+
+        private void viewRoomsBtn_Click(object sender, EventArgs e)
+        {
+            SoundClicked.operationsBtn();
+
+            if (_selectedBoardingHouseId <= 0)
+            {
+                MessageBox.Show("Please select a boarding house first.", "Info",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            var main = this.FindForm() as MainLayout;
+            if (main == null)
+            {
+                MessageBox.Show("Main form not found.", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            detailsModal.Visible = false;
+            main.OpenRoomsFromBoardingHouse(_selectedBoardingHouseId);
+        }
+
+        private void LoadBhStats()
+        {
+            if (_selectedBhId <= 0)
+            {
+                earningsTxt.Text = "(000)";
+                thisMontEarningsTxt.Text = "(000)";
+                activeRenatlsTxt.Text = "(000)";
+                totalRoomsTxt.Text = "(000)";
+                tootalRoomsOccupiedTxt.Text = "(000)";
+                totalAvailableRoomsTxt.Text = "(000)";
+                return;
+            }
+
+            try
+            {
+                using (var conn = DbConnectionFactory.CreateConnection())
+                using (var cmd = conn.CreateCommand())
+                {
+                    EnsureOpen(conn);
+
+                    // We compute all stats in one roundtrip.
+                    cmd.CommandText = @"
+                SELECT
+                    -- Total earnings (posted payments) for this boarding house
+                    COALESCE((
+                        SELECT SUM(p.amount)
+                        FROM payments p
+                        INNER JOIN rentals ren ON ren.id = p.rental_id
+                        INNER JOIN rooms rm ON rm.id = ren.room_id
+                        WHERE rm.boarding_house_id = @bhId
+                          AND p.status = 'POSTED'
+                    ), 0) AS total_earnings,
+
+                    -- This month earnings (posted payments) using bill_month
+                    COALESCE((
+                        SELECT SUM(p.amount)
+                        FROM payments p
+                        INNER JOIN rentals ren ON ren.id = p.rental_id
+                        INNER JOIN rooms rm ON rm.id = ren.room_id
+                        WHERE rm.boarding_house_id = @bhId
+                          AND p.status = 'POSTED'
+                          AND p.bill_month >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+                          AND p.bill_month <  DATE_ADD(DATE_FORMAT(CURDATE(), '%Y-%m-01'), INTERVAL 1 MONTH)
+                    ), 0) AS this_month_earnings,
+
+                    -- Active rentals count for this boarding house
+                    COALESCE((
+                        SELECT COUNT(*)
+                        FROM rentals ren
+                        INNER JOIN rooms rm ON rm.id = ren.room_id
+                        WHERE rm.boarding_house_id = @bhId
+                          AND ren.status = 'ACTIVE'
+                          AND (ren.end_date IS NULL OR ren.end_date >= CURDATE())
+                    ), 0) AS active_rentals,
+
+                    -- Total rooms
+                    COALESCE((
+                        SELECT COUNT(*)
+                        FROM rooms rm
+                        WHERE rm.boarding_house_id = @bhId
+                    ), 0) AS total_rooms,
+
+                    -- Occupied rooms (based on rooms.status)
+                    COALESCE((
+                        SELECT COUNT(*)
+                        FROM rooms rm
+                        WHERE rm.boarding_house_id = @bhId
+                          AND rm.status = 'OCCUPIED'
+                    ), 0) AS occupied_rooms,
+
+                    -- Available rooms (based on rooms.status)
+                    COALESCE((
+                        SELECT COUNT(*)
+                        FROM rooms rm
+                        WHERE rm.boarding_house_id = @bhId
+                          AND rm.status = 'AVAILABLE'
+                    ), 0) AS available_rooms
+            ";
+
+                    cmd.Parameters.AddWithValue("@bhId", _selectedBhId);
+
+                    using (var r = cmd.ExecuteReader())
+                    {
+                        if (!r.Read()) return;
+
+                        decimal totalEarnings = Convert.ToDecimal(r["total_earnings"]);
+                        decimal thisMonth = Convert.ToDecimal(r["this_month_earnings"]);
+                        int activeRentals = Convert.ToInt32(r["active_rentals"]);
+                        int totalRooms = Convert.ToInt32(r["total_rooms"]);
+                        int occupiedRooms = Convert.ToInt32(r["occupied_rooms"]);
+                        int availableRooms = Convert.ToInt32(r["available_rooms"]);
+
+                        earningsTxt.Text = $"₱ {totalEarnings:N2}";
+                        thisMontEarningsTxt.Text = $"₱ {thisMonth:N2}";
+                        activeRenatlsTxt.Text = activeRentals.ToString();
+                        totalRoomsTxt.Text = totalRooms.ToString();
+                        tootalRoomsOccupiedTxt.Text = occupiedRooms.ToString();
+                        totalAvailableRoomsTxt.Text = availableRooms.ToString();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                earningsTxt.Text = "₱ 0.00\r\n";
+                thisMontEarningsTxt.Text = "₱ 0.00\r\n";
+                activeRenatlsTxt.Text = "0";
+                totalRoomsTxt.Text = "0";
+                tootalRoomsOccupiedTxt.Text = "0";
+                totalAvailableRoomsTxt.Text = "0";
+
+                MessageBox.Show("Failed to load boarding house stats.\n" + ex.Message,
+                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+
     }
 }
 

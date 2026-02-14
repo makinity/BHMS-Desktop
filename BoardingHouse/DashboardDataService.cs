@@ -59,18 +59,26 @@ namespace BoardingHouse
                 Score = Convert.ToInt32(r["active_rentals"])
             });
 
-            // Recent Activities (latest 5 audit logs)
             payload.RecentActivities = await QueryAsync(conn, @"
                 SELECT action, entity, entity_id, details, created_at
                 FROM audit_logs
                 ORDER BY created_at DESC
                 LIMIT 5;
-            ", r => new ActivityItem
+            ", r =>
             {
-                Title = $"{r.GetString("action")} ({r.GetString("entity")} #{Convert.ToInt32(r["entity_id"])})",
-                Meta = r["details"] == DBNull.Value ? "" : Convert.ToString(r["details"]) ?? "",
-                CreatedAt = Convert.ToDateTime(r["created_at"])
+                string action = r.GetString("action");
+                string entity = r.GetString("entity");
+                long entityId = Convert.ToInt64(r["entity_id"]);
+                string details = r["details"] == DBNull.Value ? "" : Convert.ToString(r["details"]) ?? "";
+
+                return new ActivityItem
+                {
+                    Title = AuditDetailsFormatter.ToTitle(action, entity, entityId),
+                    Meta = AuditDetailsFormatter.ToMeta(action, details),
+                    CreatedAt = Convert.ToDateTime(r["created_at"])
+                };
             });
+
 
             payload.GeneratedAt = DateTime.Now;
             return payload;
@@ -128,6 +136,8 @@ namespace BoardingHouse
         public string Name { get; set; } = "";
         public int Score { get; set; }
     }
+
+
 
     public class ActivityItem
     {

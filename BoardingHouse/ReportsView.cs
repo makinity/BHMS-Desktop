@@ -182,5 +182,10 @@ namespace BoardingHouse
             var text = e.TryGetWebMessageAsString();
             return string.IsNullOrWhiteSpace(text) ? null : text;
         }
+
+        private void pnlRoot_Paint(object sender, PaintEventArgs e)
+        {
+
+        }
     }
 }

@@ -18,7 +18,6 @@ namespace BoardingHouse
             this.Close();
         }
 
-        // ✅ return user id (0 = failed)
         private int AuthenticateUser(string username, string password)
         {
             try
@@ -73,6 +72,8 @@ namespace BoardingHouse
             if (userId > 0)
             {
                 LaunchMainLayout();
+                usernametxt.Clear();
+                passwordtxt.Clear();
             }
             else
             {

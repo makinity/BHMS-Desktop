@@ -1,6 +1,6 @@
-// FILE: ReportsDataService.cs
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Globalization;
 using System.Threading.Tasks;
 using MySql.Data.MySqlClient;
@@ -16,64 +16,110 @@ namespace BoardingHouse
             if (toDate < fromDate)
                 toDate = fromDate;
 
+            var fromDateTime = fromDate;
             var toExclusive = toDate.AddDays(1);
 
             using var conn = DbConnectionFactory.CreateConnection();
+            EnsureOpen(conn);
 
             var payload = new ReportsPayload
             {
                 From = fromDate,
                 To = toDate,
                 SelectedBoardingHouseId = boardingHouseId,
-                BoardingHouses = await LoadBoardingHouseOptionsAsync(conn)
+                BoardingHouses = await LoadBoardingHouseOptionsAsync(conn),
+                SelectedOwner = boardingHouseId.HasValue
+                    ? await LoadOwnerForBoardingHouseAsync(conn, boardingHouseId.Value)
+                    : null
             };
 
-            var paymentSummary = await LoadPaymentsSummaryAsync(conn, fromDate, toExclusive, boardingHouseId);
+            var paymentSummary = await LoadPaymentsSummaryAsync(conn, fromDateTime, toExclusive, boardingHouseId);
             payload.TotalCollections = paymentSummary.TotalCollections;
-            payload.TotalPaymentsCount = paymentSummary.PaymentsCount;
+            payload.TotalPaymentsCount = paymentSummary.TotalPaymentsCount;
 
             payload.ActiveRentalsCount = await LoadActiveRentalsCountAsync(conn, fromDate, toDate, boardingHouseId);
 
-            var occupancy = await LoadOccupancySummaryAsync(conn, boardingHouseId);
-            payload.OccupancyOccupied = occupancy.Occupied;
-            payload.OccupancyAvailable = occupancy.Available;
-            payload.OccupancyMaintenance = occupancy.Maintenance;
-            payload.OccupancyRate = occupancy.TotalRooms == 0
-                ? 0d
-                : Math.Round((double)occupancy.Occupied / occupancy.TotalRooms * 100d, 2);
+            var occupancySummary = await LoadOccupancySummaryAsync(conn, boardingHouseId);
+            payload.OccupancyOccupied = occupancySummary.Occupied;
+            payload.OccupancyAvailable = occupancySummary.Available;
+            payload.OccupancyMaintenance = occupancySummary.Maintenance;
+            payload.OccupancyRate = occupancySummary.TotalRooms <= 0
+                ? 0m
+                : Math.Round((decimal)occupancySummary.Occupied * 100m / occupancySummary.TotalRooms, 2);
 
-            payload.MonthlyTrend = await LoadMonthlyTrendAsync(conn, fromDate, toExclusive, boardingHouseId);
-            payload.CollectionsRows = await LoadCollectionRowsAsync(conn, fromDate, toExclusive, boardingHouseId);
+            payload.MonthlyTrend = await LoadMonthlyTrendAsync(conn, fromDateTime, toExclusive, boardingHouseId);
+            payload.CollectionsRows = await LoadCollectionsRowsAsync(conn, fromDateTime, toExclusive, boardingHouseId);
             payload.OccupancyByHouse = await LoadOccupancyByHouseAsync(conn, boardingHouseId);
-            payload.GeneratedAt = DateTime.Now;
 
             return payload;
         }
 
+        private static void EnsureOpen(MySqlConnection conn)
+        {
+            if (conn.State != ConnectionState.Open)
+                conn.Open();
+        }
+
         private static async Task<List<BoardingHouseOption>> LoadBoardingHouseOptionsAsync(MySqlConnection conn)
         {
-            var list = new List<BoardingHouseOption>();
+            var result = new List<BoardingHouseOption>();
+
             const string sql = @"
                 SELECT id, name
                 FROM boarding_houses
-                WHERE status = 'ACTIVE'
                 ORDER BY name;";
 
             using var cmd = new MySqlCommand(sql, conn);
             using var reader = (MySqlDataReader)await cmd.ExecuteReaderAsync();
             while (await reader.ReadAsync())
             {
-                list.Add(new BoardingHouseOption
+                result.Add(new BoardingHouseOption
                 {
                     Id = Convert.ToInt32(reader["id"]),
                     Name = reader["name"]?.ToString() ?? "(Unnamed)"
                 });
             }
 
-            return list;
+            return result;
         }
 
-        private static async Task<(decimal TotalCollections, int PaymentsCount)> LoadPaymentsSummaryAsync(
+        private static async Task<OwnerInfo?> LoadOwnerForBoardingHouseAsync(MySqlConnection conn, int boardingHouseId)
+        {
+            const string sql = @"
+                SELECT
+                    o.lastname,
+                    o.firstname,
+                    o.middlename,
+                    o.contact_no,
+                    o.email
+                FROM boarding_houses bh
+                LEFT JOIN owners o ON o.id = bh.owner_id
+                WHERE bh.id = @bhId
+                LIMIT 1;";
+
+            using var cmd = new MySqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("@bhId", boardingHouseId);
+
+            using var reader = (MySqlDataReader)await cmd.ExecuteReaderAsync();
+            if (!await reader.ReadAsync())
+                return null;
+
+            var last = reader["lastname"] == DBNull.Value ? "" : reader["lastname"]?.ToString() ?? "";
+            var first = reader["firstname"] == DBNull.Value ? "" : reader["firstname"]?.ToString() ?? "";
+            var middle = reader["middlename"] == DBNull.Value ? "" : reader["middlename"]?.ToString() ?? "";
+
+            if (string.IsNullOrWhiteSpace(last) && string.IsNullOrWhiteSpace(first) && string.IsNullOrWhiteSpace(middle))
+                return null;
+
+            return new OwnerInfo
+            {
+                FullName = FormatName(last, first, middle),
+                ContactNo = reader["contact_no"] == DBNull.Value ? "" : reader["contact_no"]?.ToString() ?? "",
+                Email = reader["email"] == DBNull.Value ? "" : reader["email"]?.ToString() ?? ""
+            };
+        }
+
+        private static async Task<(decimal TotalCollections, int TotalPaymentsCount)> LoadPaymentsSummaryAsync(
             MySqlConnection conn,
             DateTime from,
             DateTime toExclusive,
@@ -84,38 +130,35 @@ namespace BoardingHouse
                     COALESCE(SUM(p.amount), 0) AS total_collections,
                     COUNT(*) AS payments_count
                 FROM payments p
-                INNER JOIN rentals r ON r.id = p.rental_id
-                INNER JOIN rooms rm ON rm.id = r.room_id
-                INNER JOIN boarding_houses bh ON bh.id = rm.boarding_house_id
+                JOIN rentals ren ON ren.id = p.rental_id
+                JOIN rooms rm ON rm.id = ren.room_id
+                JOIN boarding_houses bh ON bh.id = rm.boarding_house_id
+                JOIN occupants o ON o.id = ren.occupant_id
                 WHERE p.status = 'POSTED'
-                  AND bh.status = 'ACTIVE'
                   AND p.payment_date >= @from
                   AND p.payment_date < @toExclusive";
 
             if (boardingHouseId.HasValue)
-                sql += " AND bh.id = @boardingHouseId";
-
-            sql += ";";
+                sql += " AND bh.id = @bhId";
 
             using var cmd = new MySqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("@from", from);
             cmd.Parameters.AddWithValue("@toExclusive", toExclusive);
-            AddBoardingHouseParameter(cmd, boardingHouseId);
+            if (boardingHouseId.HasValue)
+                cmd.Parameters.AddWithValue("@bhId", boardingHouseId.Value);
 
             using var reader = (MySqlDataReader)await cmd.ExecuteReaderAsync();
-            if (await reader.ReadAsync())
-            {
-                var total = reader.IsDBNull(reader.GetOrdinal("total_collections"))
-                    ? 0m
-                    : reader.GetDecimal("total_collections");
-                var count = reader.IsDBNull(reader.GetOrdinal("payments_count"))
-                    ? 0
-                    : Convert.ToInt32(reader["payments_count"]);
+            if (!await reader.ReadAsync())
+                return (0m, 0);
 
-                return (total, count);
-            }
+            var totalCollections = reader["total_collections"] == DBNull.Value
+                ? 0m
+                : Convert.ToDecimal(reader["total_collections"]);
+            var totalPaymentsCount = reader["payments_count"] == DBNull.Value
+                ? 0
+                : Convert.ToInt32(reader["payments_count"]);
 
-            return (0m, 0);
+            return (totalCollections, totalPaymentsCount);
         }
 
         private static async Task<int> LoadActiveRentalsCountAsync(
@@ -126,23 +169,21 @@ namespace BoardingHouse
         {
             var sql = @"
                 SELECT COUNT(*)
-                FROM rentals r
-                INNER JOIN rooms rm ON rm.id = r.room_id
-                INNER JOIN boarding_houses bh ON bh.id = rm.boarding_house_id
-                WHERE bh.status = 'ACTIVE'
-                  AND r.status = 'ACTIVE'
-                  AND r.start_date <= @toInclusive
-                  AND (r.end_date IS NULL OR r.end_date >= @from)";
+                FROM rentals ren
+                JOIN rooms rm ON rm.id = ren.room_id
+                WHERE ren.status = 'ACTIVE'
+                  AND ren.start_date <= @toDate
+                  AND (ren.end_date IS NULL OR ren.end_date >= @fromDate)";
 
             if (boardingHouseId.HasValue)
-                sql += " AND bh.id = @boardingHouseId";
-
-            sql += ";";
+                sql += " AND rm.boarding_house_id = @bhId";
 
             using var cmd = new MySqlCommand(sql, conn);
-            cmd.Parameters.AddWithValue("@from", from);
-            cmd.Parameters.AddWithValue("@toInclusive", to);
-            AddBoardingHouseParameter(cmd, boardingHouseId);
+            cmd.Parameters.AddWithValue("@fromDate", from);
+            cmd.Parameters.AddWithValue("@toDate", to);
+            if (boardingHouseId.HasValue)
+                cmd.Parameters.AddWithValue("@bhId", boardingHouseId.Value);
+
             var result = await cmd.ExecuteScalarAsync();
             return Convert.ToInt32(result ?? 0);
         }
@@ -158,29 +199,25 @@ namespace BoardingHouse
                     SUM(CASE WHEN rm.status = 'MAINTENANCE' THEN 1 ELSE 0 END) AS maintenance,
                     COUNT(*) AS total_rooms
                 FROM rooms rm
-                INNER JOIN boarding_houses bh ON bh.id = rm.boarding_house_id
-                WHERE bh.status = 'ACTIVE'";
+                WHERE 1 = 1";
 
             if (boardingHouseId.HasValue)
-                sql += " AND bh.id = @boardingHouseId";
-
-            sql += ";";
+                sql += " AND rm.boarding_house_id = @bhId";
 
             using var cmd = new MySqlCommand(sql, conn);
-            AddBoardingHouseParameter(cmd, boardingHouseId);
+            if (boardingHouseId.HasValue)
+                cmd.Parameters.AddWithValue("@bhId", boardingHouseId.Value);
+
             using var reader = (MySqlDataReader)await cmd.ExecuteReaderAsync();
+            if (!await reader.ReadAsync())
+                return (0, 0, 0, 0);
 
-            if (await reader.ReadAsync())
-            {
-                return (
-                    Convert.ToInt32(reader["occupied"]),
-                    Convert.ToInt32(reader["available"]),
-                    Convert.ToInt32(reader["maintenance"]),
-                    Convert.ToInt32(reader["total_rooms"])
-                );
-            }
-
-            return (0, 0, 0, 0);
+            return (
+                reader["occupied"] == DBNull.Value ? 0 : Convert.ToInt32(reader["occupied"]),
+                reader["available"] == DBNull.Value ? 0 : Convert.ToInt32(reader["available"]),
+                reader["maintenance"] == DBNull.Value ? 0 : Convert.ToInt32(reader["maintenance"]),
+                reader["total_rooms"] == DBNull.Value ? 0 : Convert.ToInt32(reader["total_rooms"])
+            );
         }
 
         private static async Task<List<MonthlyTrendPoint>> LoadMonthlyTrendAsync(
@@ -189,23 +226,24 @@ namespace BoardingHouse
             DateTime toExclusive,
             int? boardingHouseId)
         {
-            var trend = new List<MonthlyTrendPoint>();
+            var result = new List<MonthlyTrendPoint>();
+
             var sql = @"
                 SELECT
                     YEAR(p.payment_date) AS yr,
                     MONTH(p.payment_date) AS mo,
                     COALESCE(SUM(p.amount), 0) AS amount
                 FROM payments p
-                INNER JOIN rentals r ON r.id = p.rental_id
-                INNER JOIN rooms rm ON rm.id = r.room_id
-                INNER JOIN boarding_houses bh ON bh.id = rm.boarding_house_id
+                JOIN rentals ren ON ren.id = p.rental_id
+                JOIN rooms rm ON rm.id = ren.room_id
+                JOIN boarding_houses bh ON bh.id = rm.boarding_house_id
+                JOIN occupants o ON o.id = ren.occupant_id
                 WHERE p.status = 'POSTED'
-                  AND bh.status = 'ACTIVE'
                   AND p.payment_date >= @from
                   AND p.payment_date < @toExclusive";
 
             if (boardingHouseId.HasValue)
-                sql += " AND bh.id = @boardingHouseId";
+                sql += " AND bh.id = @bhId";
 
             sql += @"
                 GROUP BY YEAR(p.payment_date), MONTH(p.payment_date)
@@ -214,110 +252,102 @@ namespace BoardingHouse
             using var cmd = new MySqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("@from", from);
             cmd.Parameters.AddWithValue("@toExclusive", toExclusive);
-            AddBoardingHouseParameter(cmd, boardingHouseId);
+            if (boardingHouseId.HasValue)
+                cmd.Parameters.AddWithValue("@bhId", boardingHouseId.Value);
 
-            var amounts = new Dictionary<DateTime, decimal>();
             using var reader = (MySqlDataReader)await cmd.ExecuteReaderAsync();
             while (await reader.ReadAsync())
             {
-                var year = reader.GetInt32("yr");
-                var month = reader.GetInt32("mo");
-                var amount = reader.IsDBNull(reader.GetOrdinal("amount"))
-                    ? 0m
-                    : reader.GetDecimal("amount");
+                var year = Convert.ToInt32(reader["yr"]);
+                var month = Convert.ToInt32(reader["mo"]);
+                var monthDate = new DateTime(year, month, 1);
 
-                var key = new DateTime(year, month, 1);
-                amounts[key] = amount;
-            }
-
-            var effectiveFrom = new DateTime(from.Year, from.Month, 1);
-            var inclusiveTo = toExclusive.AddDays(-1);
-            var effectiveTo = new DateTime(inclusiveTo.Year, inclusiveTo.Month, 1);
-            if (effectiveTo < effectiveFrom)
-                effectiveTo = effectiveFrom;
-
-            var cursor = effectiveFrom;
-            while (cursor <= effectiveTo)
-            {
-                amounts.TryGetValue(cursor, out var value);
-                trend.Add(new MonthlyTrendPoint
+                result.Add(new MonthlyTrendPoint
                 {
-                    MonthLabel = cursor.ToString("yyyy-MM", CultureInfo.InvariantCulture),
-                    Amount = value
+                    MonthLabel = monthDate.ToString("MMM yyyy", CultureInfo.InvariantCulture),
+                    Amount = reader["amount"] == DBNull.Value ? 0m : Convert.ToDecimal(reader["amount"])
                 });
-                cursor = cursor.AddMonths(1);
             }
 
-            return trend;
+            return result;
         }
 
-        private static async Task<List<CollectionRow>> LoadCollectionRowsAsync(
+        private static async Task<List<CollectionRow>> LoadCollectionsRowsAsync(
             MySqlConnection conn,
             DateTime from,
             DateTime toExclusive,
             int? boardingHouseId)
         {
-            var list = new List<CollectionRow>();
+            var result = new List<CollectionRow>();
+
             var sql = @"
                 SELECT
                     p.payment_date,
                     p.amount,
                     p.status,
                     bh.name AS boarding_house_name,
-                    COALESCE(rm.room_no, '(Room)') AS room_label,
-                    t.lastname,
-                    t.firstname,
-                    t.middlename
+                    rm.room_no,
+                    rm.room_type,
+                    o.full_name,
+                    o.lastname,
+                    o.firstname,
+                    o.middlename
                 FROM payments p
-                INNER JOIN rentals r ON r.id = p.rental_id
-                INNER JOIN rooms rm ON rm.id = r.room_id
-                INNER JOIN boarding_houses bh ON bh.id = rm.boarding_house_id
-                INNER JOIN tenants t ON t.id = r.tenant_id
+                JOIN rentals ren ON ren.id = p.rental_id
+                JOIN rooms rm ON rm.id = ren.room_id
+                JOIN boarding_houses bh ON bh.id = rm.boarding_house_id
+                JOIN occupants o ON o.id = ren.occupant_id
                 WHERE p.status = 'POSTED'
-                  AND bh.status = 'ACTIVE'
                   AND p.payment_date >= @from
                   AND p.payment_date < @toExclusive";
 
             if (boardingHouseId.HasValue)
-                sql += " AND bh.id = @boardingHouseId";
+                sql += " AND bh.id = @bhId";
 
-            sql += @"
-                ORDER BY p.payment_date DESC
-                LIMIT 200;";
+            sql += " ORDER BY p.payment_date DESC;";
 
             using var cmd = new MySqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("@from", from);
             cmd.Parameters.AddWithValue("@toExclusive", toExclusive);
-            AddBoardingHouseParameter(cmd, boardingHouseId);
+            if (boardingHouseId.HasValue)
+                cmd.Parameters.AddWithValue("@bhId", boardingHouseId.Value);
 
             using var reader = (MySqlDataReader)await cmd.ExecuteReaderAsync();
             while (await reader.ReadAsync())
             {
-                var paymentDate = reader.IsDBNull(reader.GetOrdinal("payment_date"))
-                    ? DateTime.MinValue
-                    : reader.GetDateTime("payment_date");
+                var roomNo = reader["room_no"] == DBNull.Value ? "" : reader["room_no"]?.ToString() ?? "";
+                var roomType = reader["room_type"] == DBNull.Value ? "" : reader["room_type"]?.ToString() ?? "";
+                var roomNameOrNumber = BuildRoomLabel(roomNo, roomType);
 
-                list.Add(new CollectionRow
+                var fullName = reader["full_name"] == DBNull.Value ? "" : reader["full_name"]?.ToString() ?? "";
+                if (string.IsNullOrWhiteSpace(fullName))
                 {
-                    PaymentDate = paymentDate,
-                    Amount = reader.IsDBNull(reader.GetOrdinal("amount"))
-                        ? 0m
-                        : reader.GetDecimal("amount"),
-                    Status = reader["status"]?.ToString() ?? "",
+                    var last = reader["lastname"] == DBNull.Value ? "" : reader["lastname"]?.ToString() ?? "";
+                    var first = reader["firstname"] == DBNull.Value ? "" : reader["firstname"]?.ToString() ?? "";
+                    var middle = reader["middlename"] == DBNull.Value ? "" : reader["middlename"]?.ToString() ?? "";
+                    fullName = FormatName(last, first, middle);
+                }
+
+                result.Add(new CollectionRow
+                {
+                    PaymentDate = reader["payment_date"] == DBNull.Value
+                        ? DateTime.MinValue
+                        : Convert.ToDateTime(reader["payment_date"]),
                     BoardingHouseName = reader["boarding_house_name"]?.ToString() ?? "(Unknown)",
-                    RoomNameOrNumber = reader["room_label"]?.ToString() ?? "(Room)",
-                    TenantFullName = BuildTenantDisplayName(reader)
+                    RoomNameOrNumber = roomNameOrNumber,
+                    TenantFullName = fullName,
+                    Amount = reader["amount"] == DBNull.Value ? 0m : Convert.ToDecimal(reader["amount"]),
+                    Status = reader["status"]?.ToString() ?? ""
                 });
             }
 
-            return list;
+            return result;
         }
 
-        private static async Task<List<OccupancyByHouseRow>> LoadOccupancyByHouseAsync(
-            MySqlConnection conn,
-            int? boardingHouseId)
+        private static async Task<List<OccupancyByHouseRow>> LoadOccupancyByHouseAsync(MySqlConnection conn, int? boardingHouseId)
         {
-            var list = new List<OccupancyByHouseRow>();
+            var result = new List<OccupancyByHouseRow>();
+
             var sql = @"
                 SELECT
                     bh.name AS boarding_house_name,
@@ -327,87 +357,119 @@ namespace BoardingHouse
                     COUNT(rm.id) AS total_rooms
                 FROM boarding_houses bh
                 LEFT JOIN rooms rm ON rm.boarding_house_id = bh.id
-                WHERE bh.status = 'ACTIVE'";
+                WHERE 1 = 1";
 
             if (boardingHouseId.HasValue)
-                sql += " AND bh.id = @boardingHouseId";
+                sql += " AND bh.id = @bhId";
 
             sql += @"
                 GROUP BY bh.id, bh.name
                 ORDER BY bh.name;";
 
             using var cmd = new MySqlCommand(sql, conn);
-            AddBoardingHouseParameter(cmd, boardingHouseId);
+            if (boardingHouseId.HasValue)
+                cmd.Parameters.AddWithValue("@bhId", boardingHouseId.Value);
 
             using var reader = (MySqlDataReader)await cmd.ExecuteReaderAsync();
             while (await reader.ReadAsync())
             {
-                list.Add(new OccupancyByHouseRow
+                result.Add(new OccupancyByHouseRow
                 {
                     BoardingHouseName = reader["boarding_house_name"]?.ToString() ?? "(Unnamed)",
-                    Occupied = Convert.ToInt32(reader["occupied"]),
-                    Available = Convert.ToInt32(reader["available"]),
-                    Maintenance = Convert.ToInt32(reader["maintenance"]),
-                    TotalRooms = Convert.ToInt32(reader["total_rooms"])
+                    Occupied = reader["occupied"] == DBNull.Value ? 0 : Convert.ToInt32(reader["occupied"]),
+                    Available = reader["available"] == DBNull.Value ? 0 : Convert.ToInt32(reader["available"]),
+                    Maintenance = reader["maintenance"] == DBNull.Value ? 0 : Convert.ToInt32(reader["maintenance"]),
+                    TotalRooms = reader["total_rooms"] == DBNull.Value ? 0 : Convert.ToInt32(reader["total_rooms"])
                 });
             }
 
-            return list;
+            return result;
         }
 
-        private static void AddBoardingHouseParameter(MySqlCommand cmd, int? boardingHouseId)
+        private static string BuildRoomLabel(string roomNo, string roomType)
         {
-            if (boardingHouseId.HasValue)
+            roomNo = (roomNo ?? "").Trim();
+            roomType = (roomType ?? "").Trim();
+
+            if (!string.IsNullOrWhiteSpace(roomNo) && !string.IsNullOrWhiteSpace(roomType))
+                return $"{roomNo} - {roomType}";
+            if (!string.IsNullOrWhiteSpace(roomNo))
+                return roomNo;
+            if (!string.IsNullOrWhiteSpace(roomType))
+                return roomType;
+
+            return "(Room)";
+        }
+
+        private static string FormatName(string lastname, string firstname, string middlename)
+        {
+            var ln = (lastname ?? "").Trim();
+            var fn = (firstname ?? "").Trim();
+            var mn = (middlename ?? "").Trim();
+
+            var display = "";
+            if (!string.IsNullOrWhiteSpace(ln))
+                display = ln;
+
+            if (!string.IsNullOrWhiteSpace(fn))
             {
-                cmd.Parameters.AddWithValue("@boardingHouseId", boardingHouseId.Value);
+                if (!string.IsNullOrWhiteSpace(display))
+                    display += ", ";
+                display += fn;
             }
-        }
 
-        private static string BuildTenantDisplayName(MySqlDataReader reader)
-        {
-            var names = new List<string>();
-            var last = reader["lastname"]?.ToString()?.Trim();
-            var first = reader["firstname"]?.ToString()?.Trim();
-            var middle = reader["middlename"]?.ToString()?.Trim();
+            if (!string.IsNullOrWhiteSpace(mn))
+            {
+                if (!string.IsNullOrWhiteSpace(display))
+                    display += " ";
+                display += mn;
+            }
 
-            if (!string.IsNullOrWhiteSpace(last)) names.Add(last);
-            if (!string.IsNullOrWhiteSpace(first)) names.Add(first);
-            if (!string.IsNullOrWhiteSpace(middle)) names.Add(middle);
-
-            return names.Count == 0 ? "(Unnamed)" : string.Join(" ", names);
+            return string.IsNullOrWhiteSpace(display) ? "(Unnamed)" : display;
         }
     }
 
-    public class ReportsPayload
+    public sealed class ReportsPayload
     {
         public DateTime From { get; set; }
         public DateTime To { get; set; }
+        public List<BoardingHouseOption> BoardingHouses { get; set; } = new();
         public int? SelectedBoardingHouseId { get; set; }
+        public OwnerInfo? SelectedOwner { get; set; }
 
         public decimal TotalCollections { get; set; }
         public int TotalPaymentsCount { get; set; }
         public int ActiveRentalsCount { get; set; }
-
         public int OccupancyOccupied { get; set; }
         public int OccupancyAvailable { get; set; }
         public int OccupancyMaintenance { get; set; }
-        public double OccupancyRate { get; set; }
+        public decimal OccupancyRate { get; set; }
 
         public List<MonthlyTrendPoint> MonthlyTrend { get; set; } = new();
         public List<CollectionRow> CollectionsRows { get; set; } = new();
         public List<OccupancyByHouseRow> OccupancyByHouse { get; set; } = new();
-        public List<BoardingHouseOption> BoardingHouses { get; set; } = new();
-
-        public DateTime GeneratedAt { get; set; }
     }
 
-    public class MonthlyTrendPoint
+    public sealed class BoardingHouseOption
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+    }
+
+    public sealed class OwnerInfo
+    {
+        public string FullName { get; set; } = "";
+        public string ContactNo { get; set; } = "";
+        public string Email { get; set; } = "";
+    }
+
+    public sealed class MonthlyTrendPoint
     {
         public string MonthLabel { get; set; } = "";
         public decimal Amount { get; set; }
     }
 
-    public class CollectionRow
+    public sealed class CollectionRow
     {
         public DateTime PaymentDate { get; set; }
         public string BoardingHouseName { get; set; } = "";
@@ -417,18 +479,12 @@ namespace BoardingHouse
         public string Status { get; set; } = "";
     }
 
-    public class OccupancyByHouseRow
+    public sealed class OccupancyByHouseRow
     {
         public string BoardingHouseName { get; set; } = "";
         public int Occupied { get; set; }
         public int Available { get; set; }
         public int Maintenance { get; set; }
         public int TotalRooms { get; set; }
-    }
-
-    public class BoardingHouseOption
-    {
-        public int Id { get; set; }
-        public string Name { get; set; } = "";
     }
 }

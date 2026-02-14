@@ -5,7 +5,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Admin Reports</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="chart.umd.min.js"></script>
     <style>
         * {
             box-sizing: border-box;
@@ -28,7 +28,7 @@
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
             gap: 16px;
-            margin-bottom: 24px;
+            margin-bottom: 16px;
             align-items: end;
         }
 
@@ -44,8 +44,7 @@
             font-weight: 600;
         }
 
-        input,
-        select {
+        input, select {
             height: 42px;
             border-radius: 6px;
             border: 1px solid #cbd5f5;
@@ -56,8 +55,7 @@
             transition: border-color 0.2s ease;
         }
 
-            input:focus,
-            select:focus {
+            input:focus, select:focus {
                 border-color: #2563eb;
                 outline: none;
                 box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
@@ -253,10 +251,16 @@
             </div>
         </section>
 
+        <!-- Owner panel -->
+        <section class="card" style="padding:14px 16px; margin-bottom: 16px;">
+            <div class="muted" style="font-weight:700; margin-bottom:6px;">Owner</div>
+            <div class="muted" id="ownerInfo">Select a boarding house to view owner details.</div>
+        </section>
+
         <section class="kpi-grid">
             <article class="kpi-card">
                 <div class="kpi-label">Total Collections</div>
-                <div class="kpi-value" id="kpiTotalCollections">?0.00</div>
+                <div class="kpi-value" id="kpiTotalCollections">₱0.00</div>
                 <div class="kpi-sub">Posted payments in the range</div>
             </article>
             <article class="kpi-card">
@@ -353,6 +357,8 @@
         const filterBoardingHouse = document.getElementById("filterBoardingHouse");
         const generateBtn = document.getElementById("btnGenerate");
 
+        const ownerInfo = document.getElementById("ownerInfo");
+
         const kpiTotalCollections = document.getElementById("kpiTotalCollections");
         const kpiTotalPayments = document.getElementById("kpiTotalPayments");
         const kpiActiveRentals = document.getElementById("kpiActiveRentals");
@@ -410,6 +416,24 @@
             filterFrom.value = formatDateForInput(payload.from);
             filterTo.value = formatDateForInput(payload.to);
             updateBoardingHouseOptions(payload.boardingHouses, payload.selectedBoardingHouseId);
+
+            // Owner
+            if (ownerInfo) {
+                if (payload.selectedOwner) {
+                    const o = payload.selectedOwner;
+                    const parts = [
+                        o.fullName ? `👤 ${o.fullName}` : "",
+                        o.contactNo ? `📞 ${o.contactNo}` : "",
+                        o.email ? `✉️ ${o.email}` : ""
+                    ].filter(Boolean);
+
+                    ownerInfo.textContent = parts.length
+                        ? parts.join("  •  ")
+                        : "Owner details not available.";
+                } else {
+                    ownerInfo.textContent = "Select a boarding house to view owner details.";
+                }
+            }
 
             kpiTotalCollections.textContent = formatCurrency(payload.totalCollections);
             kpiTotalPayments.textContent = formatNumber(payload.totalPaymentsCount);
@@ -484,9 +508,7 @@
                                 grid: { color: "rgba(15, 23, 42, 0.08)", borderDash: [4, 4] },
                                 ticks: {
                                     color: "#475569",
-                                    callback(value) {
-                                        return formatCurrency(value);
-                                    }
+                                    callback(value) { return formatCurrency(value); }
                                 }
                             }
                         },
@@ -494,9 +516,7 @@
                             legend: { display: false },
                             tooltip: {
                                 callbacks: {
-                                    label(context) {
-                                        return formatCurrency(context.parsed.y);
-                                    }
+                                    label(context) { return formatCurrency(context.parsed.y); }
                                 }
                             }
                         }

@@ -72,3 +72,14 @@ C:\Users\Maki Liones\source\repos\BoardingHouse\BoardingHouse\obj\Debug\net8.0-w
 C:\Users\Maki Liones\source\repos\BoardingHouse\BoardingHouse\bin\Debug\net8.0-windows\Sound\sidebarBtnClicked.mp3
 C:\Users\Maki Liones\source\repos\BoardingHouse\BoardingHouse\bin\Debug\net8.0-windows\Sound\operationsBtn.mp3
 C:\Users\Maki Liones\source\repos\BoardingHouse\BoardingHouse\bin\Debug\net8.0-windows\Sound\itemClicked.mp3
+C:\Users\Maki Liones\source\repos\BoardingHouse\BoardingHouse\obj\Debug\net8.0-windows\BoardingHouse.sourcelink.json
+C:\Users\Maki Liones\source\repos\BoardingHouse\BoardingHouse\obj\Debug\net8.0-windows\BoardingHouse.BHOwnersView.resources
+C:\Users\Maki Liones\source\repos\BoardingHouse\BoardingHouse\bin\Debug\net8.0-windows\Icons\BHOwnersIcon.png
+C:\Users\Maki Liones\source\repos\BoardingHouse\BoardingHouse\bin\Debug\net8.0-windows\AForge.dll
+C:\Users\Maki Liones\source\repos\BoardingHouse\BoardingHouse\bin\Debug\net8.0-windows\AForge.Video.dll
+C:\Users\Maki Liones\source\repos\BoardingHouse\BoardingHouse\bin\Debug\net8.0-windows\AForge.Video.DirectShow.dll
+C:\Users\Maki Liones\source\repos\BoardingHouse\BoardingHouse\obj\Debug\net8.0-windows\BoardingHouse.CameraCaptureForm.resources
+C:\Users\Maki Liones\source\repos\BoardingHouse\BoardingHouse\bin\Debug\net8.0-windows\Dashboard\chart.umd.min.js
+C:\Users\Maki Liones\source\repos\BoardingHouse\BoardingHouse\bin\Debug\net8.0-windows\Reports\chart.umd.min.js
+C:\Users\Maki Liones\source\repos\BoardingHouse\BoardingHouse\obj\Debug\net8.0-windows\BoardingHouse.ReservationsView.resources
+C:\Users\Maki Liones\source\repos\BoardingHouse\BoardingHouse\obj\Debug\net8.0-windows\BoardingHouse.StudentsView.resources
