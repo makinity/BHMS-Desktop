@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -45,32 +46,29 @@ namespace BoardingHouse
             if (cbBoardingHouses.Items.Count > 0)
                 cbBoardingHouses.SelectedIndex = 0;
 
-            if (cbOccType != null)
-            {
-                cbOccType.Visible = false;
-                cbOccType.Enabled = false;
-            }
-            if (label18 != null)
-                label18.Visible = false;
-
-            if (labelStudentNo != null)
-                labelStudentNo.Visible = true;
-            if (txtStudentNo != null)
-            {
-                txtStudentNo.Visible = true;
-                txtStudentNo.Multiline = false;
-                txtStudentNo.MaxLength = 30;
-                txtStudentNo.Text = (txtStudentNo.Text ?? string.Empty).Replace("\r", "").Replace("\n", "").Trim();
-            }
+            labelStudentNo.Visible = true;
+            txtStudentNo.Visible = true;
+            txtStudentNo.Multiline = false;
+            txtStudentNo.MaxLength = 30;
+            studentFirstnameTxt.Multiline = false;
 
             addStudentCloseBtn.Visible = true;
             addStudentCloseBtn.Enabled = true;
-            addTenantCloseBtn.Visible = false;
-            addTenantCloseBtn.Enabled = false;
 
             detailsModal.Visible = true;
 
+            ViewRoomBtn.Visible = false;
+            cbDetailsRoom.Visible = false;
+            label4.Visible = false;
+            btnViewCurrentRental.Visible = false;
+            btnViewCurrentRental.Enabled = false;
+            btnStartRental.Visible = true;
+            btnStartRental.Enabled = false;
             endRentalBtn.Visible = false;
+            if (startRentalModal != null)
+                startRentalModal.Visible = false;
+            if (cbStartRentalRoom != null)
+                cbStartRentalRoom.DropDownStyle = ComboBoxStyle.DropDownList;
 
             _initialized = true;
         }
@@ -239,8 +237,6 @@ namespace BoardingHouse
             cbBoardingHouses.SelectedIndexChanged += cbBoardingHouses_SelectedIndexChanged;
             addStudentCloseBtn.Click -= addStudentCloseBtn_Click;
             addStudentCloseBtn.Click += addStudentCloseBtn_Click;
-            addTenantCloseBtn.Click -= addStudentCloseBtn_Click;
-            addTenantCloseBtn.Click += addStudentCloseBtn_Click;
             cancelTenantRegister.Click -= cancelTenantRegister_Click;
             cancelTenantRegister.Click += cancelTenantRegister_Click;
             registerTenantBtn.Click -= registerTenantBtn_Click;
@@ -259,6 +255,14 @@ namespace BoardingHouse
             btnSnapshotOpenPayments.Click += btnSnapshotOpenPayments_Click;
             btnSnapshotViewRoom.Click -= btnSnapshotViewRoom_Click;
             btnSnapshotViewRoom.Click += btnSnapshotViewRoom_Click;
+            btnViewCurrentRental.Click -= btnViewCurrentRental_Click;
+            btnViewCurrentRental.Click += btnViewCurrentRental_Click;
+            btnStartRental.Click -= btnStartRental_Click;
+            btnStartRental.Click += btnStartRental_Click;
+            btnConfirmStartRental.Click -= btnConfirmStartRental_Click;
+            btnConfirmStartRental.Click += btnConfirmStartRental_Click;
+            btnCancelStartRental.Click -= btnCancelStartRental_Click;
+            btnCancelStartRental.Click += btnCancelStartRental_Click;
 
             detailsModal.MouseDown -= detailsModal_MouseDown;
             detailsModal.MouseDown += detailsModal_MouseDown;
@@ -413,98 +417,7 @@ namespace BoardingHouse
             {
                 _selectedBhId = bhId;
                 LoadStudentsGrid();
-                LoadRoomsDropdownForDetails(bhId);
             }
-        }
-
-        private void LoadRoomsDropdownForDetails(int bhId)
-        {
-            cbDetailsRoom.BeginUpdate();
-            cbDetailsRoom.Items.Clear();
-
-            // add NONE option to allow ending stay
-            cbDetailsRoom.Items.Add(new RoomPickItem(0, "— NONE —"));
-
-            try
-            {
-                using var conn = DbConnectionFactory.CreateConnection();
-                using var cmd = conn.CreateCommand();
-                EnsureOpen(conn);
-
-                cmd.CommandText = @"
-                    SELECT id, room_no, room_type
-                    FROM rooms
-                    WHERE boarding_house_id = @bhId
-                    ORDER BY room_no ASC;
-                ";
-                cmd.Parameters.AddWithValue("@bhId", bhId);
-
-                using var r = cmd.ExecuteReader();
-                while (r.Read())
-                {
-                    int id = Convert.ToInt32(r["id"]);
-                    string roomNo = r["room_no"]?.ToString() ?? "";
-                    string roomType = r["room_type"]?.ToString() ?? "";
-                    cbDetailsRoom.Items.Add(new RoomPickItem(id, $"{roomNo} - {roomType}".Trim()));
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Failed to load rooms.\n" + ex.Message,
-                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-            finally
-            {
-                cbDetailsRoom.EndUpdate();
-                cbDetailsRoom.SelectedIndex = 0;
-            }
-        }
-
-        private class RoomPickItem
-        {
-            public int RoomId { get; }
-            public string Display { get; }
-
-            public RoomPickItem(int roomId, string display)
-            {
-                RoomId = roomId;
-                Display = display;
-            }
-
-            public override string ToString() => Display;
-        }
-
-        private static bool RoomIsFull(MySqlConnection conn, int roomId)
-        {
-            if (conn == null || roomId <= 0) return true;
-
-            using var capCmd = conn.CreateCommand();
-            capCmd.CommandText = "SELECT capacity FROM rooms WHERE id = @roomId LIMIT 1;";
-            capCmd.Parameters.AddWithValue("@roomId", roomId);
-            int capacity = Convert.ToInt32(capCmd.ExecuteScalar() ?? 0);
-            if (capacity <= 0) return true;
-
-            using var cntCmd = conn.CreateCommand();
-            cntCmd.CommandText = @"
-                SELECT COUNT(*)
-                FROM rentals
-                WHERE room_id = @roomId
-                  AND status = 'ACTIVE'
-                  AND (end_date IS NULL OR end_date >= CURDATE());
-            ";
-            cntCmd.Parameters.AddWithValue("@roomId", roomId);
-            int active = Convert.ToInt32(cntCmd.ExecuteScalar() ?? 0);
-            return active >= capacity;
-        }
-
-        private static decimal GetRoomMonthlyRate(MySqlConnection conn, int roomId)
-        {
-            if (conn == null || roomId <= 0) return 0m;
-
-            using var cmd = conn.CreateCommand();
-            cmd.CommandText = "SELECT IFNULL(monthly_rate,0) FROM rooms WHERE id = @roomId LIMIT 1;";
-            cmd.Parameters.AddWithValue("@roomId", roomId);
-            return Convert.ToDecimal(cmd.ExecuteScalar() ?? 0m);
         }
 
         private static string BuildFullName(string ln, string fn, string mn)
@@ -517,7 +430,7 @@ namespace BoardingHouse
             SoundClicked.itemClicked();
             studentUpdateBtn.Visible = true;
             studentDeleteBtn.Visible = true;
-            endRentalBtn.Visible = true;
+            endRentalBtn.Visible = false;
 
             if (e.RowIndex < 0) return;
 
@@ -530,6 +443,7 @@ namespace BoardingHouse
             LoadStudentDetails(studentId);
             LoadPaymentHistory(studentId);
             LoadStudentSnapshot(studentId);
+            ToggleRentalButtons();
             grpDetails.Visible = true;
             detailsModal.BringToFront();
             grpDetails.BringToFront();
@@ -607,8 +521,6 @@ namespace BoardingHouse
                 cbBoardingHouses.SelectedIndexChanged -= cbBoardingHouses_SelectedIndexChanged;
                 try { cbBoardingHouses.SelectedValue = bhId; }
                 finally { cbBoardingHouses.SelectedIndexChanged += cbBoardingHouses_SelectedIndexChanged; }
-
-                LoadRoomsDropdownForDetails(bhId);
             }
             else
             {
@@ -626,7 +538,7 @@ namespace BoardingHouse
 
             studentUpdateBtn.Visible = true;
             studentDeleteBtn.Visible = true;
-            endRentalBtn.Visible = _activeRentalId > 0;
+            ToggleRentalButtons();
 
         }
 
@@ -666,8 +578,7 @@ namespace BoardingHouse
                         t.profile_path,
 
                         ren.id AS active_rental_id,
-                        ren.room_id AS active_room_id,
-                        rm.boarding_house_id AS active_room_bh_id
+                        ren.room_id AS active_room_id
                     FROM students t
                     LEFT JOIN student_occupant_map tom
                         ON tom.student_id = t.id
@@ -675,8 +586,6 @@ namespace BoardingHouse
                         ON ren.occupant_id = tom.occupant_id
                         AND ren.status = 'ACTIVE'
                         AND (ren.end_date IS NULL OR ren.end_date >= CURDATE())
-                    LEFT JOIN rooms rm
-                        ON rm.id = ren.room_id
                     WHERE t.id = @id
                     LIMIT 1;
                 ";
@@ -690,12 +599,6 @@ namespace BoardingHouse
                     HideDetails();
                     return;
                 }
-
-                int studentBhId = r["boarding_house_id"] == DBNull.Value ? 0 : Convert.ToInt32(r["boarding_house_id"]);
-                int activeRoomBhId = r["active_room_bh_id"] == DBNull.Value ? 0 : Convert.ToInt32(r["active_room_bh_id"]);
-                int effectiveBhId = activeRoomBhId > 0 ? activeRoomBhId : studentBhId;
-                if (effectiveBhId > 0)
-                    LoadRoomsDropdownForDetails(effectiveBhId);
 
                 detailsLastname.Text = r["lastname"]?.ToString() ?? "";
                 detailsFirstname.Text = r["firstname"]?.ToString() ?? "";
@@ -715,7 +618,6 @@ namespace BoardingHouse
 
                 bool hasActiveRental = _activeRentalId > 0;
                 detailsCbStatus.Enabled = !hasActiveRental;
-                cbDetailsRoom.Enabled = !hasActiveRental;
 
                 if (hasActiveRental)
                 {
@@ -728,7 +630,10 @@ namespace BoardingHouse
                 details_profilePathTxt.Text = prof;
                 LoadProfileImageIntoPictureBox(detailsStudenttImg, prof);
 
-                endRentalBtn.Visible = hasActiveRental;
+                ToggleRentalButtons();
+                ViewRoomBtn.Visible = false;
+                cbDetailsRoom.Visible = false;
+                label4.Visible = false;
             }
             catch (Exception ex)
             {
@@ -736,26 +641,6 @@ namespace BoardingHouse
                     "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
-
-            // set room dropdown selection
-            SelectRoomInDropdown(_activeRoomId);
-        }
-
-        private void SelectRoomInDropdown(int roomId)
-        {
-            if (cbDetailsRoom.Items.Count <= 0) return;
-
-            for (int i = 0; i < cbDetailsRoom.Items.Count; i++)
-            {
-                if (cbDetailsRoom.Items[i] is RoomPickItem item && item.RoomId == roomId)
-                {
-                    cbDetailsRoom.SelectedIndex = i;
-                    return;
-                }
-            }
-
-            // not found => NONE
-            cbDetailsRoom.SelectedIndex = 0;
         }
 
         private void HideDetails()
@@ -763,6 +648,128 @@ namespace BoardingHouse
             _selectedStudentId = 0;
             _activeRentalId = 0;
             _activeRoomId = 0;
+            if (startRentalModal != null)
+                startRentalModal.Visible = false;
+        }
+
+        private void ToggleRentalButtons()
+        {
+            bool hasActiveRental = _activeRentalId > 0;
+            bool hasStudent = _selectedStudentId > 0;
+
+            endRentalBtn.Visible = hasActiveRental;
+
+            btnViewCurrentRental.Visible = hasActiveRental;
+            btnViewCurrentRental.Enabled = hasActiveRental;
+
+            btnStartRental.Visible = !hasActiveRental;
+            btnStartRental.Enabled = hasStudent && !hasActiveRental;
+        }
+
+        private sealed class RoomPickItem
+        {
+            public int RoomId { get; }
+            public string Display { get; }
+
+            public RoomPickItem(int roomId, string display)
+            {
+                RoomId = roomId;
+                Display = display;
+            }
+
+            public override string ToString() => Display;
+        }
+
+        private static bool RoomIsFull(MySqlConnection conn, int roomId)
+        {
+            if (conn == null || roomId <= 0) return true;
+
+            using var capCmd = conn.CreateCommand();
+            capCmd.CommandText = "SELECT capacity FROM rooms WHERE id = @roomId LIMIT 1;";
+            capCmd.Parameters.AddWithValue("@roomId", roomId);
+            int capacity = Convert.ToInt32(capCmd.ExecuteScalar() ?? 0);
+            if (capacity <= 0) return true;
+
+            using var cntCmd = conn.CreateCommand();
+            cntCmd.CommandText = @"
+                SELECT COUNT(*)
+                FROM rentals
+                WHERE room_id = @roomId
+                  AND status = 'ACTIVE'
+                  AND (end_date IS NULL OR end_date >= CURDATE());
+            ";
+            cntCmd.Parameters.AddWithValue("@roomId", roomId);
+            int active = Convert.ToInt32(cntCmd.ExecuteScalar() ?? 0);
+            return active >= capacity;
+        }
+
+        private static decimal GetRoomMonthlyRate(MySqlConnection conn, int roomId)
+        {
+            if (conn == null || roomId <= 0) return 0m;
+
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT IFNULL(monthly_rate,0) FROM rooms WHERE id = @roomId LIMIT 1;";
+            cmd.Parameters.AddWithValue("@roomId", roomId);
+            return Convert.ToDecimal(cmd.ExecuteScalar() ?? 0m);
+        }
+
+        private void LoadRoomsDropdownForStartRental(int bhId)
+        {
+            cbStartRentalRoom.BeginUpdate();
+            cbStartRentalRoom.Items.Clear();
+
+            try
+            {
+                using var conn = DbConnectionFactory.CreateConnection();
+                using var cmd = conn.CreateCommand();
+                EnsureOpen(conn);
+
+                cmd.CommandText = @"
+                    SELECT id, room_no, room_type, capacity, IFNULL(monthly_rate,0) AS monthly_rate
+                    FROM rooms
+                    WHERE boarding_house_id = @bhId
+                      AND status <> 'INACTIVE'
+                    ORDER BY room_no ASC;
+                ";
+                cmd.Parameters.AddWithValue("@bhId", bhId);
+
+                var roomRows = new List<(int RoomId, string RoomNo, string RoomType, int Capacity, decimal MonthlyRate)>();
+                using (var r = cmd.ExecuteReader())
+                {
+                    while (r.Read())
+                    {
+                        roomRows.Add(
+                            (
+                                Convert.ToInt32(r["id"]),
+                                r["room_no"]?.ToString() ?? "",
+                                r["room_type"]?.ToString() ?? "",
+                                r["capacity"] == DBNull.Value ? 0 : Convert.ToInt32(r["capacity"]),
+                                r["monthly_rate"] == DBNull.Value ? 0m : Convert.ToDecimal(r["monthly_rate"])
+                            )
+                        );
+                    }
+                }
+
+                foreach (var room in roomRows)
+                {
+                    if (RoomIsFull(conn, room.RoomId))
+                        continue;
+
+                    string display = $"{room.RoomNo} - {room.RoomType} (Rate: {room.MonthlyRate:N2}, Cap:{room.Capacity})";
+                    cbStartRentalRoom.Items.Add(new RoomPickItem(room.RoomId, display));
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Failed to load rooms for start rental.\n" + ex.Message,
+                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                cbStartRentalRoom.EndUpdate();
+                if (cbStartRentalRoom.Items.Count > 0)
+                    cbStartRentalRoom.SelectedIndex = 0;
+            }
         }
 
         private void LoadProfileImageIntoPictureBox(PictureBox pb, string relativePath)
@@ -779,12 +786,18 @@ namespace BoardingHouse
                 if (string.IsNullOrWhiteSpace(relativePath))
                     return;
 
-                string fullPath = System.IO.Path.Combine(Application.StartupPath, relativePath);
+                string normalizedPath = relativePath
+                    .Trim()
+                    .Replace('/', Path.DirectorySeparatorChar)
+                    .Replace('\\', Path.DirectorySeparatorChar);
+                string fullPath = Path.IsPathRooted(normalizedPath)
+                    ? normalizedPath
+                    : Path.Combine(Application.StartupPath, normalizedPath);
 
-                if (!System.IO.File.Exists(fullPath))
+                if (!File.Exists(fullPath))
                     return;
 
-                using (var fs = new System.IO.FileStream(fullPath, System.IO.FileMode.Open, System.IO.FileAccess.Read, System.IO.FileShare.ReadWrite))
+                using (var fs = new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
                 using (var img = Image.FromStream(fs))
                 {
                     pb.Image = new Bitmap(img);
@@ -1099,8 +1112,6 @@ namespace BoardingHouse
                         cbBoardingHouses.SelectedIndexChanged += cbBoardingHouses_SelectedIndexChanged;
                     }
                 }
-
-                LoadRoomsDropdownForDetails(targetBhId);
             }
 
             LoadStudentsGrid();
@@ -1127,16 +1138,6 @@ namespace BoardingHouse
             profilePathTxt.Text = "";
             txtStudentNo.Text = "";
 
-            if (cbOccType != null)
-            {
-                cbOccType.Visible = false;
-                cbOccType.Enabled = false;
-            }
-            if (label18 != null)
-                label18.Visible = false;
-
-            addTenantCloseBtn.Visible = false;
-            addTenantCloseBtn.Enabled = false;
         }
 
         private int GetSelectedBoardingHouseId()
@@ -1177,6 +1178,12 @@ namespace BoardingHouse
         {
             if (keyData == Keys.Escape)
             {
+                if (startRentalModal.Visible)
+                {
+                    startRentalModal.Visible = false;
+                    return true;
+                }
+
                 if (addStudentsModal.Visible)
                 {
                     addStudentsModal.Visible = false;
@@ -1199,6 +1206,7 @@ namespace BoardingHouse
             LoadStudentDetails(_selectedStudentId);
             LoadStudentSnapshot(_selectedStudentId);
             LoadPaymentHistory(_selectedStudentId);
+            ToggleRentalButtons();
         }
 
         private void btnSnapshotOpenPayments_Click(object? sender, EventArgs e)
@@ -1238,6 +1246,195 @@ namespace BoardingHouse
 
             main.OpenRoomsForTenantRoom(_activeRoomId);
             HideDetails();
+        }
+
+        private void btnViewCurrentRental_Click(object? sender, EventArgs e)
+        {
+            if (_selectedStudentId <= 0)
+            {
+                MessageBox.Show("Select a student first.", "Info",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            if (_activeRentalId <= 0)
+            {
+                MessageBox.Show("This student has no ACTIVE rental.", "Info",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            if (FindForm() is not MainLayout main)
+                return;
+
+            main.OpenPaymentsForRental(_activeRentalId);
+
+            HideDetails();
+        }
+
+        private void btnStartRental_Click(object? sender, EventArgs e)
+        {
+            if (_selectedStudentId <= 0)
+            {
+                MessageBox.Show("Select a student first.", "Info",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            if (_activeRentalId > 0)
+            {
+                MessageBox.Show("This student already has an ACTIVE rental.", "Info",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            int bhId = GetSelectedBoardingHouseId();
+            if (bhId <= 0)
+                bhId = GetEffectiveBoardingHouseIdForStudent(_selectedStudentId);
+
+            if (bhId <= 0)
+            {
+                MessageBox.Show("Unable to resolve boarding house for this student.", "Info",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            string fullName = (detailsLastname.Text ?? "").Trim();
+            string first = (detailsFirstname.Text ?? "").Trim();
+            string middle = (detailsMiddlename.Text ?? "").Trim();
+            lblStartRentalStudent.Text = $"{fullName}, {first}{(string.IsNullOrWhiteSpace(middle) ? "" : " " + middle)}  (ID: {_selectedStudentId})";
+
+            LoadRoomsDropdownForStartRental(bhId);
+            if (cbStartRentalRoom.Items.Count <= 0)
+            {
+                MessageBox.Show("No rooms available for the selected boarding house.", "Info",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            startRentalModal.Visible = true;
+            startRentalModal.BringToFront();
+            cbStartRentalRoom.Focus();
+        }
+
+        private void btnCancelStartRental_Click(object? sender, EventArgs e)
+        {
+            startRentalModal.Visible = false;
+        }
+
+        private void btnConfirmStartRental_Click(object? sender, EventArgs e)
+        {
+            if (_selectedStudentId <= 0)
+            {
+                MessageBox.Show("Select a student first.", "Info",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            if (_activeRentalId > 0)
+            {
+                MessageBox.Show("This student already has an ACTIVE rental.", "Info",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            if (cbStartRentalRoom.SelectedItem is not RoomPickItem roomPick || roomPick.RoomId <= 0)
+            {
+                MessageBox.Show("Select a valid room.", "Validation",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            try
+            {
+                using var conn = DbConnectionFactory.CreateConnection();
+                EnsureOpen(conn);
+                using var tx = conn.BeginTransaction();
+
+                try
+                {
+                    int occupantId = GetOccupantIdForStudent(conn, _selectedStudentId);
+                    if (occupantId <= 0)
+                        throw new InvalidOperationException("Student occupant mapping is missing.");
+
+                    using (var cmdActive = conn.CreateCommand())
+                    {
+                        cmdActive.Transaction = tx;
+                        cmdActive.CommandText = @"
+                            SELECT COUNT(*)
+                            FROM rentals
+                            WHERE occupant_id=@occId
+                              AND status='ACTIVE'
+                              AND (end_date IS NULL OR end_date >= CURDATE());
+                        ";
+                        cmdActive.Parameters.AddWithValue("@occId", occupantId);
+                        int activeCount = Convert.ToInt32(cmdActive.ExecuteScalar() ?? 0);
+                        if (activeCount > 0)
+                            throw new InvalidOperationException("Student already has active rental.");
+                    }
+
+                    if (RoomIsFull(conn, roomPick.RoomId))
+                        throw new InvalidOperationException("Selected room is already full.");
+
+                    decimal monthlyRate = GetRoomMonthlyRate(conn, roomPick.RoomId);
+                    if (monthlyRate <= 0m)
+                        throw new InvalidOperationException("Selected room has invalid monthly rate.");
+
+                    long newRentalId;
+                    using (var cmdInsert = conn.CreateCommand())
+                    {
+                        cmdInsert.Transaction = tx;
+                        cmdInsert.CommandText = @"
+                            INSERT INTO rentals
+                            (room_id, occupant_id, start_date, end_date, monthly_rate, deposit_amount, status, notes, created_by, created_at, updated_at)
+                            VALUES
+                            (@roomId, @occId, CURDATE(), NULL, @rate, 0.00, 'ACTIVE', NULL, @createdBy, NOW(), NOW());
+                        ";
+                        cmdInsert.Parameters.AddWithValue("@roomId", roomPick.RoomId);
+                        cmdInsert.Parameters.AddWithValue("@occId", occupantId);
+                        cmdInsert.Parameters.AddWithValue("@rate", monthlyRate);
+                        cmdInsert.Parameters.AddWithValue("@createdBy", CurrentUserId > 0 ? (object)CurrentUserId : DBNull.Value);
+                        cmdInsert.ExecuteNonQuery();
+                        newRentalId = cmdInsert.LastInsertedId;
+                    }
+
+                    WriteAuditLog(conn, tx,
+                        CurrentUserId > 0 ? (int?)CurrentUserId : null,
+                        "CREATE",
+                        "RENTAL",
+                        (int)newRentalId,
+                        $"student_id={_selectedStudentId}; occupant_id={occupantId}; room_id={roomPick.RoomId}; monthly_rate={monthlyRate}");
+
+                    tx.Commit();
+                }
+                catch
+                {
+                    try { tx.Rollback(); } catch { }
+                    throw;
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Failed to start rental.\n" + ex.Message,
+                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            startRentalModal.Visible = false;
+
+            LoadStudentsGrid();
+            UpdateTotalStudentsLabel();
+            LoadStudentDetails(_selectedStudentId);
+            LoadStudentSnapshot(_selectedStudentId);
+            LoadPaymentHistory(_selectedStudentId);
+            ToggleRentalButtons();
+
+            if (FindForm() is MainLayout main)
+            {
+                var refreshRooms = main.GetType().GetMethod("RefreshRooms", Type.EmptyTypes)
+                                  ?? main.GetType().GetMethod("RefreshRoomsView", Type.EmptyTypes);
+                refreshRooms?.Invoke(main, null);
+            }
         }
 
         private void RegisterStudent()
@@ -1437,7 +1634,6 @@ namespace BoardingHouse
             string profile = (details_profilePathTxt.Text ?? "").Trim();
             string status = detailsCbStatus.SelectedItem?.ToString() ?? "ACTIVE";
             if (_activeRentalId > 0) status = "ACTIVE";
-            int pickedRoomId = (cbDetailsRoom.SelectedItem is RoomPickItem pick) ? pick.RoomId : 0;
 
             if (string.IsNullOrWhiteSpace(ln) || string.IsNullOrWhiteSpace(fn))
             {
@@ -1459,37 +1655,6 @@ namespace BoardingHouse
                     int occupantId = GetOccupantIdForStudent(conn, _selectedStudentId);
                     if (occupantId <= 0)
                         throw new InvalidOperationException("Student mapping to occupant is missing.");
-
-                    long createdRentalId = 0;
-
-                    if (_activeRentalId == 0 && pickedRoomId > 0)
-                    {
-                        if (RoomIsFull(conn, pickedRoomId))
-                            throw new InvalidOperationException("Selected room is already full.");
-
-                        decimal monthlyRate = GetRoomMonthlyRate(conn, pickedRoomId);
-                        if (monthlyRate <= 0)
-                            throw new InvalidOperationException("Selected room has invalid monthly rate.");
-
-                        status = "ACTIVE";
-
-                        using var insRent = conn.CreateCommand();
-                        insRent.Transaction = tx;
-                        insRent.CommandText = @"
-                            INSERT INTO rentals
-                            (room_id, occupant_id, start_date, end_date, monthly_rate, deposit_amount,
-                             status, notes, created_by, created_at, updated_at)
-                            VALUES
-                            (@roomId, @occId, CURDATE(), NULL, @rate, 0.00,
-                             'ACTIVE', NULL, @createdBy, NOW(), NOW());
-                        ";
-                        insRent.Parameters.AddWithValue("@roomId", pickedRoomId);
-                        insRent.Parameters.AddWithValue("@occId", occupantId);
-                        insRent.Parameters.AddWithValue("@rate", monthlyRate);
-                        insRent.Parameters.AddWithValue("@createdBy", CurrentUserId > 0 ? (object)CurrentUserId : DBNull.Value);
-                        insRent.ExecuteNonQuery();
-                        createdRentalId = insRent.LastInsertedId;
-                    }
 
                     using (var cmd = conn.CreateCommand())
                     {
@@ -1570,16 +1735,6 @@ namespace BoardingHouse
                         "STUDENT",
                         _selectedStudentId,
                         $"Updated student profile/status={status}");
-
-                    if (createdRentalId > 0)
-                    {
-                        WriteAuditLog(conn, tx,
-                            CurrentUserId > 0 ? (int?)CurrentUserId : null,
-                            "CREATE",
-                            "RENTAL",
-                            (int)createdRentalId,
-                            $"student_id={_selectedStudentId}; occupant_id={occupantId}; room_id={pickedRoomId}; monthly_rate={GetRoomMonthlyRate(conn, pickedRoomId)}");
-                    }
 
                     tx.Commit();
                 }
@@ -1858,6 +2013,164 @@ namespace BoardingHouse
             cmd.Parameters.AddWithValue("@entityId", entityId.HasValue ? (object)entityId.Value : DBNull.Value);
             cmd.Parameters.AddWithValue("@details", string.IsNullOrWhiteSpace(details) ? (object)DBNull.Value : details);
             cmd.ExecuteNonQuery();
+        }
+
+        private void detailsBrowseProfileBtn_Click(object sender, EventArgs e)
+        {
+            using var ofd = new OpenFileDialog();
+            ofd.Title = "Select Student Profile Image";
+            ofd.Filter = "Image Files|*.jpg;*.jpeg;*.png;*.bmp;*.gif|All Files|*.*";
+            ofd.Multiselect = false;
+
+            if (ofd.ShowDialog() != DialogResult.OK) return;
+
+            try
+            {
+                // 1) Ensure folder exists
+                string profilesDir = Path.Combine(Application.StartupPath, "Profiles", "students");
+                if (!Directory.Exists(profilesDir))
+                    Directory.CreateDirectory(profilesDir);
+
+                // 2) Create a unique filename (avoid overwriting)
+                string ext = Path.GetExtension(ofd.FileName);
+                string safeName =
+                    $"student_{(_selectedStudentId > 0 ? _selectedStudentId.ToString() : DateTime.Now.Ticks.ToString())}{ext}";
+                string destFullPath = Path.Combine(profilesDir, safeName);
+
+                // If same name exists, append random
+                if (File.Exists(destFullPath))
+                {
+                    safeName =
+                        $"student_{(_selectedStudentId > 0 ? _selectedStudentId.ToString() : DateTime.Now.Ticks.ToString())}_{Guid.NewGuid().ToString("N").Substring(0, 6)}{ext}";
+                    destFullPath = Path.Combine(profilesDir, safeName);
+                }
+
+                // 3) Copy selected file into app folder
+                File.Copy(ofd.FileName, destFullPath, true);
+
+                // 4) Save RELATIVE path to textbox (DB-ready format)
+                string relativePath = Path.Combine("Profiles", "students", safeName);
+
+                details_profilePathTxt.Text = relativePath;
+
+                // 5) Preview in picturebox (load safely)
+                if (detailsStudenttImg.Image != null)
+                {
+                    var old = detailsStudenttImg.Image;
+                    detailsStudenttImg.Image = null;
+                    old.Dispose();
+                }
+
+                using (var temp = Image.FromFile(destFullPath))
+                    detailsStudenttImg.Image = new Bitmap(temp);
+
+                detailsStudenttImg.SizeMode = PictureBoxSizeMode.StretchImage;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Failed to set profile image.\n" + ex.Message,
+                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void detailsOpenCameraBtn_Click(object sender, EventArgs e)
+        {
+            using var cam = new CameraCaptureForm();
+            if (cam.ShowDialog() == DialogResult.OK && !string.IsNullOrWhiteSpace(cam.SavedImagePath))
+            {
+                details_profilePathTxt.Text = cam.SavedImagePath;
+                LoadPictureSafe(detailsStudenttImg, cam.SavedImagePath);
+            }
+        }
+
+        private void LoadPictureSafe(PictureBox pb, string path)
+        {
+            try
+            {
+                if (pb.Image != null)
+                {
+                    var old = pb.Image;
+                    pb.Image = null;
+                    old.Dispose();
+                }
+
+                if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+                {
+                    pb.Image = null;
+                    return;
+                }
+
+                using var fs = new FileStream(path, FileMode.Open, FileAccess.Read);
+                using var img = Image.FromStream(fs);
+                pb.Image = new Bitmap(img);
+            }
+            catch
+            {
+                pb.Image = null;
+            }
+        }
+
+        private void registrationOpenCameraBtn_Click(object sender, EventArgs e)
+        {
+            using var cam = new CameraCaptureForm();
+            if (cam.ShowDialog() == DialogResult.OK && !string.IsNullOrWhiteSpace(cam.SavedImagePath))
+            {
+                profilePathTxt.Text = cam.SavedImagePath;
+                LoadPictureSafe(addStudentImg, cam.SavedImagePath);
+            }
+        }
+
+        private void browseProfileBtn_Click(object sender, EventArgs e)
+        {
+            using var ofd = new OpenFileDialog();
+            ofd.Title = "Select Profile Image";
+            ofd.Filter = "Image Files|*.jpg;*.jpeg;*.png;*.bmp;*.gif|All Files|*.*";
+            ofd.Multiselect = false;
+
+            if (ofd.ShowDialog() != DialogResult.OK) return;
+
+            try
+            {
+                string profilesDir = System.IO.Path.Combine(Application.StartupPath, "Profiles", "tenants");
+                if (!System.IO.Directory.Exists(profilesDir))
+                    System.IO.Directory.CreateDirectory(profilesDir);
+
+                string ext = System.IO.Path.GetExtension(ofd.FileName);
+
+                string safeName = $"profile_{DateTime.Now.Ticks}{ext}";
+                string destFullPath = System.IO.Path.Combine(profilesDir, safeName);
+
+                if (System.IO.File.Exists(destFullPath))
+                {
+                    safeName = $"profile_{DateTime.Now.Ticks}_{Guid.NewGuid().ToString("N").Substring(0, 6)}{ext}";
+                    destFullPath = System.IO.Path.Combine(profilesDir, safeName);
+                }
+
+                System.IO.File.Copy(ofd.FileName, destFullPath, true);
+
+                string relativePath = System.IO.Path.Combine("Profiles", "tenants", safeName);
+
+                profilePathTxt.Text = relativePath;
+
+                if (addStudentImg.Image != null)
+                {
+                    var old = addStudentImg.Image;
+                    addStudentImg.Image = null;
+                    old.Dispose();
+                }
+
+                using (var temp = Image.FromFile(destFullPath))
+                {
+                    addStudentImg.Image = new Bitmap(temp);
+                }
+
+                addStudentImg.SizeMode = PictureBoxSizeMode.StretchImage;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Failed to set profile image.\n" + ex.Message,
+                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
     }
 }

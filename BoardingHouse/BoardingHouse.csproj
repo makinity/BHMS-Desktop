@@ -19,6 +19,8 @@
     <None Remove="Icons\IconReports.png" />
     <None Remove="Icons\IconRooms.png" />
     <None Remove="Icons\IconTenants.png" />
+    <None Remove="Icons\rentalsIcon.png" />
+    <None Remove="Icons\reservationsIcon.png" />
     <None Remove="Map\leaflet\images\marker-icon-2x.png" />
     <None Remove="Map\leaflet\images\marker-icon.png" />
     <None Remove="Map\leaflet\images\marker-shadow.png" />
@@ -79,6 +81,12 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Icons\IconTenants.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Icons\rentalsIcon.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Icons\reservationsIcon.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Reports\chart.umd.min.js">

@@ -175,10 +175,10 @@ namespace BoardingHouse
                 btnDashboard,
                 btnBoardingHouses,
                 btnBHOwners,
-                btnTenants,
-                btnStudents,
+                btnOccupants,
                 btnRooms,
                 btnReservations,
+                btnRentals,
                 btnPayments,
                 btnReports
             };
@@ -200,10 +200,10 @@ namespace BoardingHouse
             TrySetButtonIcon(btnDashboard, "IconDashboard.png");
             TrySetButtonIcon(btnBoardingHouses, "IconBoardinghouse.png");
             TrySetButtonIcon(btnBHOwners, "BHOwnersIcon.png");
-            TrySetButtonIcon(btnTenants, "IconTenants.png");
-            TrySetButtonIcon(btnStudents, "IconTenants.png");
+            TrySetButtonIcon(btnOccupants, "IconTenants.png");
             TrySetButtonIcon(btnRooms, "IconRooms.png");
-            TrySetButtonIcon(btnReservations, "IconRooms.png");
+            TrySetButtonIcon(btnReservations, "reservationsIcon.png");
+            TrySetButtonIcon(btnRentals, "rentalsIcon.png");
             TrySetButtonIcon(btnPayments, "IconPayments.png");
             TrySetButtonIcon(btnReports, "IconReports.png");
         }
@@ -391,7 +391,7 @@ namespace BoardingHouse
         {
             if (tenantId <= 0) return;
 
-            SetActiveNavButton(btnTenants);
+            SetActiveNavButton(btnOccupants);
 
             var view = new TenantsView
             {
@@ -459,7 +459,7 @@ namespace BoardingHouse
                         return;
                     }
 
-                    SetActiveNavButton(btnStudents);
+                    SetActiveNavButton(btnOccupants);
 
                     var view = new StudentsView
                     {
@@ -483,7 +483,7 @@ namespace BoardingHouse
 
         public void OpenAddTenantModalFromRooms(int boardingHouseId)
         {
-            SetActiveNavButton(btnTenants);
+            SetActiveNavButton(btnOccupants);
 
             var view = new TenantsView
             {
@@ -689,6 +689,18 @@ namespace BoardingHouse
             _profileDropDown?.Close();
             MessageBox.Show("Settings Screen");
             _isOpeningSettingsScreen = false;
+        }
+
+        private void btnOccupants_Click(object sender, EventArgs e)
+        {
+            SetActiveNavButton((Button)sender);
+            LoadControl(new OccupantsView());
+        }
+
+        private void btnRentals_Click(object sender, EventArgs e)
+        {
+            SetActiveNavButton((Button)sender);
+            LoadControl(new RentalsView());
         }
     }
 }

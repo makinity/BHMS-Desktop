@@ -46,14 +46,13 @@ namespace BoardingHouse
             if (cbBoardingHouses.Items.Count > 0)
                 cbBoardingHouses.SelectedIndex = 0;
 
-            cbOccType.Items.Clear();
-            cbOccType.SelectedIndexChanged -= cbOccType_SelectedIndexChanged;
-            cbOccType.Enabled = false;
-            cbOccType.Visible = false;
-            label18.Visible = false;
-            labelStudentNo.Visible = false;
-            txtStudentNo.Visible = false;
-            txtStudentNo.Text = "";
+            // Profile-only mode: room assignment controls are not used in TenantsView.
+            cbDetailsRoom.Visible = false;
+            label4.Visible = false;
+            ViewRoomBtn.Visible = false;
+            endRentalBtn.Visible = false;
+            btnViewCurrentRental.Visible = false;
+            btnStartRental.Visible = false;
 
             _initialized = true;
         }
@@ -87,6 +86,11 @@ namespace BoardingHouse
 
             tenantUpdateBtn.Click += tenantUpdateBtn_Click;
             tenantDeleteBtn.Click += tenantDeleteBtn_Click;
+
+            btnViewCurrentRental.Click -= btnViewCurrentRental_Click;
+            btnViewCurrentRental.Click += btnViewCurrentRental_Click;
+            btnStartRental.Click -= btnStartRental_Click;
+            btnStartRental.Click += btnStartRental_Click;
 
             detailsEmail.ReadOnly = true;
             detailsEContact.ReadOnly = true;
@@ -486,7 +490,6 @@ namespace BoardingHouse
             {
                 _selectedBhId = bhId;
                 LoadTenantsGrid();
-                LoadRoomsDropdownForDetails(bhId);
             }
         }
 
@@ -711,7 +714,7 @@ namespace BoardingHouse
             SoundClicked.itemClicked();
             tenantUpdateBtn.Visible = true;
             tenantDeleteBtn.Visible = true;
-            endRentalBtn.Visible = true;
+            endRentalBtn.Visible = false;
 
             if (e.RowIndex < 0) return;
 
@@ -834,7 +837,6 @@ namespace BoardingHouse
                     cbBoardingHouses.SelectedIndexChanged += cbBoardingHouses_SelectedIndexChanged;
                 }
 
-                LoadRoomsDropdownForDetails(targetBhId);
             }
             else
             {
@@ -852,7 +854,7 @@ namespace BoardingHouse
 
             tenantUpdateBtn.Visible = true;
             tenantDeleteBtn.Visible = true;
-            endRentalBtn.Visible = _activeRentalId > 0;
+            endRentalBtn.Visible = false;
 
             detailsModal.Visible = true;
             detailsModal.BringToFront();
@@ -888,7 +890,6 @@ namespace BoardingHouse
                     }
                 }
 
-                LoadRoomsDropdownForDetails(targetBhId);
             }
 
             LoadTenantsGrid();
@@ -969,7 +970,6 @@ namespace BoardingHouse
 
                 bool hasActiveRental = _activeRentalId > 0;
                 detailsCbStatus.Enabled = !hasActiveRental;
-                cbDetailsRoom.Enabled = !hasActiveRental;
 
                 if (hasActiveRental)
                 {
@@ -977,6 +977,13 @@ namespace BoardingHouse
                     if (activeIdx >= 0)
                         detailsCbStatus.SelectedIndex = activeIdx;
                 }
+
+                btnViewCurrentRental.Visible = hasActiveRental;
+                btnStartRental.Visible = !hasActiveRental;
+                endRentalBtn.Visible = false;
+                cbDetailsRoom.Visible = false;
+                label4.Visible = false;
+                ViewRoomBtn.Visible = false;
 
                 string prof = (r["profile_path"] == DBNull.Value) ? "" : (r["profile_path"]?.ToString() ?? "");
                 profilePathTxt.Text = prof;
@@ -990,9 +997,6 @@ namespace BoardingHouse
                     "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
-
-            // set room dropdown selection
-            SelectRoomInDropdown(_activeRoomId);
         }
 
         private void SelectRoomInDropdown(int roomId)
@@ -1241,7 +1245,49 @@ namespace BoardingHouse
             OpenAddTenantModal(_selectedBhId);
         }
 
-        private void ViewRoomBtn_Click(object sender, EventArgs e)
+        private bool TryGetActiveRentalForTenant(int tenantId, out int occupantId, out int rentalId, out int roomId)
+        {
+            occupantId = 0;
+            rentalId = 0;
+            roomId = 0;
+
+            if (tenantId <= 0) return false;
+
+            try
+            {
+                using var conn = DbConnectionFactory.CreateConnection();
+                EnsureOpen(conn);
+
+                occupantId = GetOccupantIdForTenant(conn, tenantId);
+                if (occupantId <= 0) return false;
+
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = @"
+                    SELECT id, room_id
+                    FROM rentals
+                    WHERE occupant_id = @occId
+                      AND status = 'ACTIVE'
+                      AND (end_date IS NULL OR end_date >= CURDATE())
+                    ORDER BY start_date DESC
+                    LIMIT 1;
+                ";
+                cmd.Parameters.AddWithValue("@occId", occupantId);
+
+                using var r = cmd.ExecuteReader();
+                if (!r.Read()) return false;
+
+                rentalId = r["id"] == DBNull.Value ? 0 : Convert.ToInt32(r["id"]);
+                roomId = r["room_id"] == DBNull.Value ? 0 : Convert.ToInt32(r["room_id"]);
+
+                return rentalId > 0;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private void btnViewCurrentRental_Click(object sender, EventArgs e)
         {
             SoundClicked.operationsBtn();
 
@@ -1252,9 +1298,59 @@ namespace BoardingHouse
                 return;
             }
 
-            if (_activeRoomId <= 0)
+            if (!TryGetActiveRentalForTenant(_selectedTenantId, out _, out int rentalId, out int roomId))
             {
-                MessageBox.Show("This tenant has no assigned room yet.", "Info",
+                MessageBox.Show("No ACTIVE rental.", "Info",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            _activeRentalId = rentalId;
+            _activeRoomId = roomId;
+
+            if (FindForm() is not MainLayout main)
+                return;
+
+            var mainType = main.GetType();
+            var openRentalsForRental = mainType.GetMethod("OpenRentalsForRental", new[] { typeof(int) });
+            if (openRentalsForRental != null)
+            {
+                openRentalsForRental.Invoke(main, new object[] { _activeRentalId });
+            }
+            else
+            {
+                main.OpenPaymentsForRental(_activeRentalId);
+            }
+            HideDetails();
+        }
+
+        private void btnStartRental_Click(object sender, EventArgs e)
+        {
+            SoundClicked.operationsBtn();
+
+            if (_selectedTenantId <= 0)
+            {
+                MessageBox.Show("Select a tenant first.", "Info",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            if (TryGetActiveRentalForTenant(_selectedTenantId, out _, out int rentalId, out int roomId))
+            {
+                _activeRentalId = rentalId;
+                _activeRoomId = roomId;
+                MessageBox.Show(
+                    "This tenant already has an ACTIVE rental.\nUse 'View Current Rental' instead.",
+                    "Action Denied",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+                return;
+            }
+
+            int occupantId = GetOccupantIdForTenant(_selectedTenantId);
+            if (occupantId <= 0)
+            {
+                MessageBox.Show("Tenant has no linked occupant record.", "Info",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
@@ -1262,9 +1358,33 @@ namespace BoardingHouse
             if (FindForm() is not MainLayout main)
                 return;
 
-            main.OpenRoomsForTenantRoom(_activeRoomId);
+            var mainType = main.GetType();
+            var rentalMethod =
+                mainType.GetMethod("OpenRentalEngineForOccupant", new[] { typeof(int) }) ??
+                mainType.GetMethod("OpenRentalsStartForOccupant", new[] { typeof(int) }) ??
+                mainType.GetMethod("OpenRentalsForTenant", new[] { typeof(int) });
 
-            HideDetails();
+            if (rentalMethod != null)
+            {
+                rentalMethod.Invoke(main, new object[] { occupantId });
+                HideDetails();
+                return;
+            }
+
+            MessageBox.Show(
+                "Rental engine entrypoint is missing.\n\n" +
+                "Please add one of these methods in MainLayout:\n" +
+                "• OpenRentalEngineForOccupant(int occupantId)\n" +
+                "• OpenRentalsStartForOccupant(int occupantId)\n" +
+                "• OpenRentalsForTenant(int tenantId)",
+                "Missing Rental Entry",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
+        }
+
+        private void ViewRoomBtn_Click(object sender, EventArgs e)
+        {
+            btnViewCurrentRental_Click(sender, e);
         }
 
         private void addTenantCloseBtn_Click(object sender, EventArgs e)
@@ -1466,12 +1586,6 @@ namespace BoardingHouse
             // Tenant screen always registers TENANT only.
         }
 
-        private void UpdateStudentNoVisibility()
-        {
-            labelStudentNo.Visible = false;
-            txtStudentNo.Visible = false;
-            txtStudentNo.Text = "";
-        }
 
 
         private void ClearTenantForm()
@@ -1485,12 +1599,6 @@ namespace BoardingHouse
             tenantEmergencyNameTxt.Text = "";
             tenantEmergencyContactTxt.Text = "";
             profilePathTxt.Text = "";
-            txtStudentNo.Text = "";
-            cbOccType.Enabled = false;
-            cbOccType.Visible = false;
-            label18.Visible = false;
-            labelStudentNo.Visible = false;
-            txtStudentNo.Visible = false;
         }
 
         private void cancelTenantRegister_Click(object sender, EventArgs e)
@@ -1569,13 +1677,7 @@ namespace BoardingHouse
             string profile = (profilePathTxt.Text ?? "").Trim();
 
             bool hasActiveRental = _activeRentalId > 0;
-            int pickedRoomId = 0;
-            if (cbDetailsRoom.SelectedItem is RoomPickItem roomItem)
-                pickedRoomId = roomItem.RoomId;
-
             string st = hasActiveRental ? "ACTIVE" : (detailsCbStatus.SelectedItem?.ToString() ?? "ACTIVE");
-            if (!hasActiveRental && pickedRoomId > 0)
-                st = "ACTIVE";
 
             try
             {
@@ -1612,10 +1714,6 @@ namespace BoardingHouse
                     if (reader.Read())
                         beforeTenant = ReadTenantAudit(reader);
                 }
-
-                long? newRentalId = null;
-                object? rentalAuditDetails = null;
-                DateTime rentalStartDate = DateTime.Today;
 
                 using (var cmd = conn.CreateCommand())
                 {
@@ -1654,67 +1752,6 @@ namespace BoardingHouse
                     cmd.ExecuteNonQuery();
                 }
 
-                if (!hasActiveRental && pickedRoomId > 0)
-                {
-                    int occupantId = GetOccupantIdForTenant(conn, _selectedTenantId);
-                    if (occupantId <= 0)
-                    {
-                        tx.Rollback();
-                        MessageBox.Show("This tenant is not mapped to an occupant yet. Please create the mapping first.", "Validation",
-                            MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                        return;
-                    }
-
-                    if (RoomIsFull(conn, pickedRoomId))
-                    {
-                        tx.Rollback();
-                        MessageBox.Show("Selected room is already full.", "Action Denied",
-                            MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                        return;
-                    }
-
-                    decimal roomRate = GetRoomMonthlyRate(conn, pickedRoomId);
-                    if (roomRate <= 0m)
-                    {
-                        tx.Rollback();
-                        MessageBox.Show("Selected room has an invalid monthly rate.", "Validation",
-                            MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                        return;
-                    }
-
-                    using var insert = conn.CreateCommand();
-                    insert.Transaction = tx;
-                    insert.CommandText = @"
-                    INSERT INTO rentals
-                        (occupant_id, room_id, start_date, end_date, monthly_rate, deposit_amount,
-                         status, notes, created_by, created_at, updated_at)
-                    VALUES
-                        (@occId, @roomId, CURDATE(), NULL, @rate, 0.00,
-                         'ACTIVE', NULL, @createdBy, NOW(), NOW());
-                ";
-                    insert.Parameters.AddWithValue("@occId", occupantId);
-                    insert.Parameters.AddWithValue("@roomId", pickedRoomId);
-                    insert.Parameters.AddWithValue("@rate", roomRate);
-                    insert.Parameters.AddWithValue("@createdBy", CurrentUserId > 0 ? (object)CurrentUserId : DBNull.Value);
-                    insert.ExecuteNonQuery();
-                    long insertedRentalId = Convert.ToInt64(insert.LastInsertedId);
-                    if (insertedRentalId > 0)
-                    {
-                        newRentalId = insertedRentalId;
-                        rentalAuditDetails = new
-                        {
-                            occupant_id = occupantId,
-                            room_id = pickedRoomId,
-                            start_date = rentalStartDate,
-                            end_date = (DateTime?)null,
-                            monthly_rate = roomRate,
-                            deposit_amount = 0m,
-                            status = "ACTIVE",
-                            created_by = uid
-                        };
-                    }
-                }
-
                 tx.Commit();
                 var afterTenant = new
                 {
@@ -1731,10 +1768,6 @@ namespace BoardingHouse
                     status = st
                 };
                 AuditLogger.Log(uid, "UPDATE", "tenants", _selectedTenantId, new { before = beforeTenant, after = afterTenant });
-                if (newRentalId.HasValue && newRentalId.Value > 0 && rentalAuditDetails != null)
-                {
-                    AuditLogger.Log(uid, "CREATE", "rentals", newRentalId.Value, rentalAuditDetails);
-                }
 
                 MessageBox.Show("Tenant updated successfully.", "Success",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -1747,7 +1780,8 @@ namespace BoardingHouse
             }
             catch (Exception ex)
             {
-
+                MessageBox.Show("Failed to update tenant.\n" + ex.Message,
+                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -1776,8 +1810,7 @@ namespace BoardingHouse
             }
 
             var confirm = MessageBox.Show(
-                "PERMANENT DELETE?\n\nThis will remove the tenant AND ALL related records:\n" +
-                "• rentals\n• payments\n• billing items\n\nThis cannot be undone. Continue?",
+                "PERMANENT DELETE?\n\nThis removes the tenant profile record.\n\nThis cannot be undone. Continue?",
                 "Confirm Permanent Delete",
                 MessageBoxButtons.YesNo,
                 MessageBoxIcon.Warning
@@ -1821,69 +1854,29 @@ namespace BoardingHouse
                         deletedTenant = ReadTenantAudit(reader);
                 }
 
-
-                var rentalIds = new System.Collections.Generic.List<int>();
                 if (occupantId > 0)
                 {
-                    using (var getRentals = conn.CreateCommand())
+                    using var rentalHistoryCmd = conn.CreateCommand();
+                    rentalHistoryCmd.Transaction = tx;
+                    rentalHistoryCmd.CommandText = @"
+                        SELECT COUNT(*)
+                        FROM rentals
+                        WHERE occupant_id = @occId;
+                    ";
+                    rentalHistoryCmd.Parameters.AddWithValue("@occId", occupantId);
+                    int rentalHistoryCount = Convert.ToInt32(rentalHistoryCmd.ExecuteScalar() ?? 0);
+                    if (rentalHistoryCount > 0)
                     {
-                        getRentals.Transaction = tx;
-                        getRentals.CommandText = @"SELECT id FROM rentals WHERE occupant_id = @occId;";
-                        getRentals.Parameters.AddWithValue("@occId", occupantId);
-
-                        using var r = getRentals.ExecuteReader();
-                        while (r.Read())
-                            rentalIds.Add(Convert.ToInt32(r["id"]));
-                    }
-                }
-
-                int paymentsDeleted = 0;
-                int billingDeleted = 0;
-                int rentalsDeleted = 0;
-
-                if (rentalIds.Count > 0)
-                {
-                    string inClause = "";
-                    using (var tmp = conn.CreateCommand()) { }
-
-                    // Build: (@r0,@r1,@r2...)
-                    var paramNames = new System.Text.StringBuilder();
-                    for (int i = 0; i < rentalIds.Count; i++)
-                    {
-                        if (i > 0) paramNames.Append(",");
-                        paramNames.Append($"@r{i}");
-                    }
-                    inClause = paramNames.ToString();
-
-                    // 2) Delete payments
-                    using (var delPay = conn.CreateCommand())
-                    {
-                        delPay.Transaction = tx;
-                        delPay.CommandText = $"DELETE FROM payments WHERE rental_id IN ({inClause});";
-                        for (int i = 0; i < rentalIds.Count; i++)
-                            delPay.Parameters.AddWithValue($"@r{i}", rentalIds[i]);
-
-                        paymentsDeleted = delPay.ExecuteNonQuery();
-                    }
-
-                    // 3) Delete billing items
-                    using (var delBill = conn.CreateCommand())
-                    {
-                        delBill.Transaction = tx;
-                        delBill.CommandText = $"DELETE FROM billing_items WHERE rental_id IN ({inClause});";
-                        for (int i = 0; i < rentalIds.Count; i++)
-                            delBill.Parameters.AddWithValue($"@r{i}", rentalIds[i]);
-
-                        billingDeleted = delBill.ExecuteNonQuery();
-                    }
-
-                    // 4) Delete rentals
-                    using (var delRentals = conn.CreateCommand())
-                    {
-                        delRentals.Transaction = tx;
-                        delRentals.CommandText = @"DELETE FROM rentals WHERE occupant_id = @occId;";
-                        delRentals.Parameters.AddWithValue("@occId", occupantId);
-                        rentalsDeleted = delRentals.ExecuteNonQuery();
+                        tx.Rollback();
+                        MessageBox.Show(
+                            "This tenant has rental history.\n\n" +
+                            "TenantsView is profile-only and cannot delete rental-linked tenants.\n" +
+                            "Use the Rental Engine to manage rental records first.",
+                            "Action Denied",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Warning
+                        );
+                        return;
                     }
                 }
 
@@ -1916,14 +1909,7 @@ namespace BoardingHouse
                 tx.Commit();
                 var deleteAuditDetails = new
                 {
-                    deleted = deletedTenant,
-                    rental_ids = rentalIds,
-                    deleted_counts = new
-                    {
-                        payments = paymentsDeleted,
-                        billing_items = billingDeleted,
-                        rentals = rentalsDeleted
-                    }
+                    deleted = deletedTenant
                 };
                 AuditLogger.Log(uid, "DELETE", "tenants", _selectedTenantId, deleteAuditDetails);
 
@@ -1944,279 +1930,11 @@ namespace BoardingHouse
         private void endRentalBtn_Click(object sender, EventArgs e)
         {
             SoundClicked.operationsBtn();
-
-            int uid = CurrentUserId > 0 ? CurrentUserId : 1;
-
-            if (_selectedTenantId <= 0)
-            {
-                MessageBox.Show("Please select a tenant first.", "Info",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
-
-            if (_activeRentalId <= 0)
-            {
-                MessageBox.Show("This tenant has no ACTIVE rental to end.", "Info",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
-
-            var confirm = MessageBox.Show(
-                "End this tenant's ACTIVE rental now?\n" +
-                "This will set the rental status to ENDED and end date to today.\n\n" +
-                "After ending, the tenant will be set to INACTIVE.",
-                "Confirm End Rental",
-                MessageBoxButtons.YesNo,
-                MessageBoxIcon.Warning
-            );
-
-            if (confirm != DialogResult.Yes) return;
-
-            try
-            {
-                using var conn = DbConnectionFactory.CreateConnection();
-                EnsureOpen(conn);
-
-                using var tx = conn.BeginTransaction();
-                int occupantId = GetOccupantIdForTenant(conn, _selectedTenantId);
-                if (occupantId <= 0)
-                {
-                    tx.Rollback();
-                    MessageBox.Show("This tenant is not mapped to an occupant. Unable to end rental.", "Info",
-                        MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    return;
-                }
-
-                // Re-check status (avoid stale UI)
-                object beforeRental = null;
-                int rentalOccupantId = 0;
-                int rentalRoomId = 0;
-                DateTime? rentalStartDate = null;
-                DateTime? rentalEndDate = null;
-                decimal rentalMonthlyRate = 0m;
-                decimal rentalDepositAmount = 0m;
-                string rentalStatus = "";
-                using (var chk = conn.CreateCommand())
-                {
-                    chk.Transaction = tx;
-                    chk.CommandText = @"
-                SELECT
-                    id,
-                    occupant_id,
-                    room_id,
-                    start_date,
-                    end_date,
-                    monthly_rate,
-                    deposit_amount,
-                    status
-                FROM rentals
-                WHERE id = @rentalId
-                  AND occupant_id = @occId
-                LIMIT 1;
-            ";
-                    chk.Parameters.AddWithValue("@rentalId", _activeRentalId);
-                    chk.Parameters.AddWithValue("@occId", occupantId);
-
-                    using var reader = chk.ExecuteReader();
-                    if (!reader.Read())
-                    {
-                        tx.Rollback();
-                        MessageBox.Show("Rental not found. Please refresh.", "Info",
-                            MessageBoxButtons.OK, MessageBoxIcon.Information);
-                        profilePathTxt.Text = "";
-                        LoadProfileImageIntoPictureBox(detailsTenantImg, "");
-                        LoadTenantDetails(_selectedTenantId);
-                        LoadTenantsGrid();
-                        return;
-                    }
-
-                    rentalOccupantId = Convert.ToInt32(reader["occupant_id"]);
-                    rentalRoomId = Convert.ToInt32(reader["room_id"]);
-                    rentalStartDate = reader["start_date"] == DBNull.Value ? null : (DateTime?)Convert.ToDateTime(reader["start_date"]);
-                    rentalEndDate = reader["end_date"] == DBNull.Value ? null : (DateTime?)Convert.ToDateTime(reader["end_date"]);
-                    rentalMonthlyRate = reader["monthly_rate"] == DBNull.Value ? 0m : Convert.ToDecimal(reader["monthly_rate"], CultureInfo.InvariantCulture);
-                    rentalDepositAmount = reader["deposit_amount"] == DBNull.Value ? 0m : Convert.ToDecimal(reader["deposit_amount"], CultureInfo.InvariantCulture);
-                    rentalStatus = reader["status"]?.ToString() ?? "";
-                    beforeRental = new
-                    {
-                        id = _activeRentalId,
-                        occupant_id = rentalOccupantId,
-                        room_id = rentalRoomId,
-                        start_date = rentalStartDate,
-                        end_date = rentalEndDate,
-                        monthly_rate = rentalMonthlyRate,
-                        deposit_amount = rentalDepositAmount,
-                        status = rentalStatus
-                    };
-
-                    if (!string.Equals(rentalStatus, "ACTIVE", StringComparison.OrdinalIgnoreCase))
-                    {
-                        tx.Rollback();
-                        MessageBox.Show("This rental is no longer ACTIVE. Please refresh.", "Info",
-                            MessageBoxButtons.OK, MessageBoxIcon.Information);
-                        profilePathTxt.Text = "";
-                        LoadProfileImageIntoPictureBox(detailsTenantImg, "");
-                        LoadTenantDetails(_selectedTenantId);
-                        LoadTenantsGrid();
-                        return;
-                    }
-                }
-
-                object beforeTenant = null;
-                string beforeLastname = "";
-                string beforeFirstname = "";
-                string? beforeMiddlename = null;
-                string beforeFullName = "";
-                string? beforeContact = null;
-                string? beforeEmail = null;
-                string? beforeAddress = null;
-                string? beforeEName = null;
-                string? beforeENo = null;
-                string? beforeProfilePath = null;
-
-                // End the rental
-                int ended = 0;
-                using (var cmd = conn.CreateCommand())
-                {
-                    cmd.Transaction = tx;
-                    cmd.CommandText = @"
-                UPDATE rentals
-                SET status = 'ENDED',
-                    end_date = CURDATE(),
-                    updated_at = NOW()
-                WHERE id = @id
-                  AND occupant_id = @occId
-                  AND status = 'ACTIVE'
-                LIMIT 1;
-            ";
-                    cmd.Parameters.AddWithValue("@id", _activeRentalId);
-                    cmd.Parameters.AddWithValue("@occId", occupantId);
-
-                    ended = cmd.ExecuteNonQuery();
-                }
-
-                if (ended <= 0)
-                {
-                    tx.Rollback();
-                    MessageBox.Show("Unable to end rental. It may have already been ended.", "Info",
-                        MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    profilePathTxt.Text = "";
-                    LoadProfileImageIntoPictureBox(detailsTenantImg, "");
-                    LoadTenantDetails(_selectedTenantId);
-                    LoadTenantsGrid();
-                    return;
-                }
-
-                using (var tenantSnapshot = conn.CreateCommand())
-                {
-                    tenantSnapshot.Transaction = tx;
-                    tenantSnapshot.CommandText = @"
-                    SELECT
-                        id,
-                        lastname,
-                        firstname,
-                        middlename,
-                        full_name,
-                        contact_no,
-                        email,
-                        address,
-                        emergency_contact_name,
-                        emergency_contact_no,
-                        profile_path,
-                        status
-                    FROM tenants
-                    WHERE id = @tenantId
-                    LIMIT 1;
-                ";
-                    tenantSnapshot.Parameters.AddWithValue("@tenantId", _selectedTenantId);
-
-                    using var reader = tenantSnapshot.ExecuteReader();
-                    if (reader.Read())
-                    {
-                        beforeTenant = ReadTenantAudit(reader);
-                        beforeLastname = reader["lastname"]?.ToString() ?? "";
-                        beforeFirstname = reader["firstname"]?.ToString() ?? "";
-                        beforeMiddlename = reader["middlename"] == DBNull.Value ? null : reader["middlename"]?.ToString();
-                        beforeFullName = reader["full_name"]?.ToString() ?? "";
-                        beforeContact = reader["contact_no"] == DBNull.Value ? null : reader["contact_no"]?.ToString();
-                        beforeEmail = reader["email"] == DBNull.Value ? null : reader["email"]?.ToString();
-                        beforeAddress = reader["address"] == DBNull.Value ? null : reader["address"]?.ToString();
-                        beforeEName = reader["emergency_contact_name"] == DBNull.Value ? null : reader["emergency_contact_name"]?.ToString();
-                        beforeENo = reader["emergency_contact_no"] == DBNull.Value ? null : reader["emergency_contact_no"]?.ToString();
-                        beforeProfilePath = reader["profile_path"] == DBNull.Value ? null : reader["profile_path"]?.ToString();
-                    }
-                }
-
-                // Set tenant to INACTIVE after ending rental
-                using (var cmd2 = conn.CreateCommand())
-                {
-                    cmd2.Transaction = tx;
-                    cmd2.CommandText = @"
-                UPDATE tenants
-                SET status = 'INACTIVE',
-                    updated_at = NOW()
-                WHERE id = @tenantId
-                LIMIT 1;
-            ";
-                    cmd2.Parameters.AddWithValue("@tenantId", _selectedTenantId);
-                    cmd2.ExecuteNonQuery();
-                }
-
-                tx.Commit();
-                if (beforeRental != null)
-                {
-                    var afterRental = new
-                    {
-                        id = _activeRentalId,
-                        occupant_id = rentalOccupantId,
-                        room_id = rentalRoomId,
-                        start_date = rentalStartDate,
-                        end_date = DateTime.Today,
-                        monthly_rate = rentalMonthlyRate,
-                        deposit_amount = rentalDepositAmount,
-                        status = "ENDED"
-                    };
-                    AuditLogger.Log(uid, "UPDATE", "rentals", _activeRentalId, new { before = beforeRental, after = afterRental });
-                }
-                if (beforeTenant != null)
-                {
-                    var afterTenant = new
-                    {
-                        lastname = beforeLastname,
-                        firstname = beforeFirstname,
-                        middlename = beforeMiddlename,
-                        full_name = beforeFullName,
-                        contact_no = beforeContact,
-                        email = beforeEmail,
-                        address = beforeAddress,
-                        emergency_contact_name = beforeEName,
-                        emergency_contact_no = beforeENo,
-                        profile_path = beforeProfilePath,
-                        status = "INACTIVE"
-                    };
-                    AuditLogger.Log(uid, "UPDATE", "tenants", _selectedTenantId, new { before = beforeTenant, after = afterTenant });
-                }
-
-                MessageBox.Show("Rental ended and tenant set to INACTIVE.", "Success",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
-
-                _activeRentalId = 0;
-                _activeRoomId = 0;
-
-                SelectRoomInDropdown(0);
-                detailsCbStatus.SelectedItem = "INACTIVE";
-
-                LoadTenantsGrid();
-                profilePathTxt.Text = "";
-                LoadProfileImageIntoPictureBox(detailsTenantImg, "");
-                LoadTenantDetails(_selectedTenantId);
-                UpdateTotalTenantsLabel();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Failed to end rental.\n" + ex.Message,
-                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
+            MessageBox.Show(
+                "TenantsView is profile-only.\nPlease use the Rental Engine screen to end rentals.",
+                "Read-Only Rental Action",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
         }
 
         private void detailsBrowseProfileBtn_Click(object sender, EventArgs e)

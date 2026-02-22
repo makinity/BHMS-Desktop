@@ -460,6 +460,7 @@ namespace BoardingHouse
                 case "CANCELLED": lblSelectedStatusBadge.BackColor = Color.DimGray; break;
                 case "EXPIRED": lblSelectedStatusBadge.BackColor = Color.SlateGray; break;
                 case "CHECKED_IN": lblSelectedStatusBadge.BackColor = Color.SteelBlue; break;
+                case "CONVERTED": lblSelectedStatusBadge.BackColor = Color.DarkSlateGray; break;
                 default: lblSelectedStatusBadge.BackColor = Color.SlateGray; break;
             }
         }
@@ -518,6 +519,13 @@ namespace BoardingHouse
             if (!hasSelection) return;
 
             var status = (lblSelectedStatusBadge.Text ?? "").ToUpperInvariant();
+
+            if (status == "CONVERTED")
+            {
+                btnEditReservation.Visible = false;
+                btnEditReservation.Enabled = false;
+                return;
+            }
 
             if (status == "PENDING")
             {
@@ -886,6 +894,40 @@ namespace BoardingHouse
             return count > 0;
         }
 
+        private static bool StatusEquals(string? a, string b)
+        {
+            return string.Equals((a ?? string.Empty).Trim(), b, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool ReservationIsConvertible(string? status)
+        {
+            return StatusEquals(status, "APPROVED") || StatusEquals(status, "CHECKED_IN");
+        }
+
+        private static bool IsInvalidReservationStatusValue(MySqlException ex)
+        {
+            if (ex == null) return false;
+            if (ex.Number == 1265 || ex.Number == 1366) return true;
+
+            var msg = ex.Message ?? string.Empty;
+            return msg.IndexOf("Data truncated for column", StringComparison.OrdinalIgnoreCase) >= 0
+                || msg.IndexOf("Incorrect enum value", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        private bool HasActiveRentalForSameRoomOccupant(uint roomId, uint occupantId, MySqlConnection con, MySqlTransaction tx)
+        {
+            using var cmd = new MySqlCommand(@"
+                SELECT COUNT(*)
+                FROM rentals
+                WHERE room_id = @room
+                  AND occupant_id = @occ
+                  AND status = 'ACTIVE';", con, tx);
+            cmd.Parameters.AddWithValue("@room", roomId);
+            cmd.Parameters.AddWithValue("@occ", occupantId);
+            var count = Convert.ToInt32(cmd.ExecuteScalar() ?? 0);
+            return count > 0;
+        }
+
         // ---------------------------
         // STATUS ACTIONS
         // ---------------------------
@@ -918,23 +960,31 @@ namespace BoardingHouse
             if (!_selectedReservationId.HasValue) return;
 
             var id = _selectedReservationId.Value;
+            var confirm = MessageBox.Show(
+                "Convert this reservation to an ACTIVE rental?",
+                "Confirm Convert",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question);
+            if (confirm != DialogResult.Yes) return;
 
-            // create rental from reservation (simple version)
             using var con = Conn();
             using var tx = con.BeginTransaction();
 
             try
             {
-                // get reservation
+                // lock and load reservation
                 using var cmd = new MySqlCommand(@"
-                    SELECT occupant_id, room_id, reserved_from, reserved_to
+                    SELECT occupant_id, room_id, reserved_from, reserved_to, status
                     FROM reservations
                     WHERE id=@id
-                    LIMIT 1;", con, tx);
+                    LIMIT 1
+                    FOR UPDATE;", con, tx);
                 cmd.Parameters.AddWithValue("@id", id);
 
                 uint occupantId, roomId;
-                DateTime from, to;
+                DateTime from;
+                DateTime? to = null;
+                string reservationStatus;
                 using (var rd = cmd.ExecuteReader())
                 {
                     if (!rd.Read())
@@ -947,7 +997,32 @@ namespace BoardingHouse
                     occupantId = Convert.ToUInt32(rd["occupant_id"]);
                     roomId = Convert.ToUInt32(rd["room_id"]);
                     from = Convert.ToDateTime(rd["reserved_from"]);
-                    to = Convert.ToDateTime(rd["reserved_to"]);
+                    to = rd["reserved_to"] == DBNull.Value ? (DateTime?)null : Convert.ToDateTime(rd["reserved_to"]);
+                    reservationStatus = rd["status"]?.ToString() ?? string.Empty;
+                }
+
+                if (StatusEquals(reservationStatus, "CONVERTED"))
+                {
+                    tx.Rollback();
+                    MessageBox.Show("This reservation is already converted.", "Convert",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+
+                if (!ReservationIsConvertible(reservationStatus))
+                {
+                    tx.Rollback();
+                    MessageBox.Show("Only APPROVED or CHECKED_IN reservations can be converted.", "Convert",
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                if (HasActiveRentalForSameRoomOccupant(roomId, occupantId, con, tx))
+                {
+                    tx.Rollback();
+                    MessageBox.Show("An ACTIVE rental already exists for this room and occupant.", "Convert",
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
                 }
 
                 // get room monthly rate
@@ -958,24 +1033,58 @@ namespace BoardingHouse
 
                 // insert rental
                 using var cmdIns = new MySqlCommand(@"
-                    INSERT INTO rentals (room_id, occupant_id, start_date, end_date, monthly_rate, deposit_amount, status, notes, created_at, updated_at)
-                    VALUES (@room, @occ, @start, @end, @rate, 0.00, 'ACTIVE', @notes, NOW(), NOW());", con, tx);
+                    INSERT INTO rentals (room_id, occupant_id, start_date, end_date, monthly_rate, deposit_amount, status, notes, created_by, created_at, updated_at)
+                    VALUES (@room, @occ, @start, @end, @rate, 0.00, 'ACTIVE', @notes, @createdBy, NOW(), NOW());", con, tx);
                 cmdIns.Parameters.AddWithValue("@room", roomId);
                 cmdIns.Parameters.AddWithValue("@occ", occupantId);
                 cmdIns.Parameters.AddWithValue("@start", from.Date);
-                cmdIns.Parameters.AddWithValue("@end", (object)(to == DateTime.MinValue ? DBNull.Value : to.Date));
+                cmdIns.Parameters.AddWithValue("@end", to.HasValue ? (object)to.Value.Date : DBNull.Value);
                 cmdIns.Parameters.AddWithValue("@rate", monthlyRate);
                 cmdIns.Parameters.AddWithValue("@notes", $"Converted from reservation #{id}");
+                cmdIns.Parameters.AddWithValue("@createdBy", CurrentUserId > 0 ? (object)CurrentUserId : DBNull.Value);
                 cmdIns.ExecuteNonQuery();
+                long rentalId = cmdIns.LastInsertedId;
 
-                // keep current reservation status; only touch updated_at
-                using var cmdUpd = new MySqlCommand("UPDATE reservations SET updated_at=NOW() WHERE id=@id;", con, tx);
-                cmdUpd.Parameters.AddWithValue("@id", id);
-                cmdUpd.ExecuteNonQuery();
+                bool usedFallbackStatus = false;
+                string conversionNote = $"Converted to rental #{rentalId} on {DateTime.Now:yyyy-MM-dd HH:mm}.";
+
+                try
+                {
+                    using var cmdUpd = new MySqlCommand(@"
+                        UPDATE reservations
+                        SET status = 'CONVERTED',
+                            notes = CASE
+                                WHEN notes IS NULL OR TRIM(notes) = '' THEN @note
+                                ELSE CONCAT(notes, CHAR(10), @note)
+                            END,
+                            updated_at = NOW()
+                        WHERE id = @id;", con, tx);
+                    cmdUpd.Parameters.AddWithValue("@id", id);
+                    cmdUpd.Parameters.AddWithValue("@note", conversionNote);
+                    cmdUpd.ExecuteNonQuery();
+                }
+                catch (MySqlException ex) when (IsInvalidReservationStatusValue(ex))
+                {
+                    usedFallbackStatus = true;
+                    using var cmdFallback = new MySqlCommand(@"
+                        UPDATE reservations
+                        SET status = 'CHECKED_IN',
+                            notes = CASE
+                                WHEN notes IS NULL OR TRIM(notes) = '' THEN @note
+                                ELSE CONCAT(notes, CHAR(10), @note)
+                            END,
+                            updated_at = NOW()
+                        WHERE id = @id;", con, tx);
+                    cmdFallback.Parameters.AddWithValue("@id", id);
+                    cmdFallback.Parameters.AddWithValue("@note", conversionNote + " (fallback status)");
+                    cmdFallback.ExecuteNonQuery();
+                }
 
                 tx.Commit();
 
-                WriteAuditLog(id, "CONVERT", "system", "Converted reservation to rental.");
+                string terminalStatus = usedFallbackStatus ? "CHECKED_IN" : "CONVERTED";
+                WriteAuditLog(id, "CONVERT", "system",
+                    $"Converted reservation to rental #{rentalId}. terminal_status={terminalStatus}");
                 MessageBox.Show("Converted to rental successfully.", "Convert", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
                 RefreshReservations();

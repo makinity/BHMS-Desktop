@@ -191,16 +191,16 @@ namespace BoardingHouse
             detailsModal.Controls.Add(details_txtAddress);
             detailsModal.Controls.Add(details_txtBHName);
             detailsModal.ForeColor = SystemColors.ActiveCaptionText;
-            detailsModal.Location = new Point(3, 323);
+            detailsModal.Location = new Point(3, 365);
             detailsModal.Name = "detailsModal";
-            detailsModal.Size = new Size(540, 652);
+            detailsModal.Size = new Size(540, 607);
             detailsModal.TabIndex = 2;
             detailsModal.Paint += panel1_Paint;
             // 
             // viewRoomsBtn
             // 
             viewRoomsBtn.FlatStyle = FlatStyle.Flat;
-            viewRoomsBtn.Location = new Point(325, 356);
+            viewRoomsBtn.Location = new Point(325, 353);
             viewRoomsBtn.Name = "viewRoomsBtn";
             viewRoomsBtn.Size = new Size(78, 30);
             viewRoomsBtn.TabIndex = 35;
@@ -211,7 +211,7 @@ namespace BoardingHouse
             // 
             // details_txtThumbnailPath
             // 
-            details_txtThumbnailPath.Location = new Point(333, 57);
+            details_txtThumbnailPath.Location = new Point(333, 54);
             details_txtThumbnailPath.Multiline = true;
             details_txtThumbnailPath.Name = "details_txtThumbnailPath";
             details_txtThumbnailPath.Size = new Size(161, 20);
@@ -222,7 +222,7 @@ namespace BoardingHouse
             // 
             label19.AutoSize = true;
             label19.Font = new Font("Segoe UI Semibold", 10.8F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            label19.Location = new Point(35, 237);
+            label19.Location = new Point(35, 234);
             label19.Name = "label19";
             label19.Size = new Size(77, 25);
             label19.TabIndex = 26;
@@ -233,7 +233,7 @@ namespace BoardingHouse
             details_cbOwner.AutoCompleteMode = AutoCompleteMode.SuggestAppend;
             details_cbOwner.AutoCompleteSource = AutoCompleteSource.ListItems;
             details_cbOwner.FormattingEnabled = true;
-            details_cbOwner.Location = new Point(35, 265);
+            details_cbOwner.Location = new Point(35, 262);
             details_cbOwner.Name = "details_cbOwner";
             details_cbOwner.Size = new Size(212, 28);
             details_cbOwner.TabIndex = 25;
@@ -243,7 +243,7 @@ namespace BoardingHouse
             // 
             label18.AutoSize = true;
             label18.Font = new Font("Segoe UI Semibold", 10.8F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            label18.Location = new Point(35, 98);
+            label18.Location = new Point(35, 95);
             label18.Name = "label18";
             label18.Size = new Size(110, 25);
             label18.TabIndex = 24;
@@ -251,7 +251,7 @@ namespace BoardingHouse
             // 
             // details_txtContactNo
             // 
-            details_txtContactNo.Location = new Point(35, 126);
+            details_txtContactNo.Location = new Point(35, 123);
             details_txtContactNo.Multiline = true;
             details_txtContactNo.Name = "details_txtContactNo";
             details_txtContactNo.Size = new Size(212, 27);
@@ -260,7 +260,7 @@ namespace BoardingHouse
             // details_cbstatus
             // 
             details_cbstatus.FormattingEnabled = true;
-            details_cbstatus.Location = new Point(110, 312);
+            details_cbstatus.Location = new Point(110, 309);
             details_cbstatus.Name = "details_cbstatus";
             details_cbstatus.Size = new Size(139, 28);
             details_cbstatus.TabIndex = 22;
@@ -269,7 +269,7 @@ namespace BoardingHouse
             // 
             label17.AutoSize = true;
             label17.Font = new Font("Segoe UI Semibold", 10.8F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            label17.Location = new Point(35, 312);
+            label17.Location = new Point(35, 309);
             label17.Name = "label17";
             label17.Size = new Size(72, 25);
             label17.TabIndex = 21;
@@ -278,7 +278,7 @@ namespace BoardingHouse
             // editBrowseBtn
             // 
             editBrowseBtn.ForeColor = SystemColors.ActiveCaptionText;
-            editBrowseBtn.Location = new Point(333, 194);
+            editBrowseBtn.Location = new Point(333, 191);
             editBrowseBtn.Name = "editBrowseBtn";
             editBrowseBtn.Size = new Size(78, 29);
             editBrowseBtn.TabIndex = 19;
@@ -292,9 +292,9 @@ namespace BoardingHouse
             btnDelete.BackColor = Color.FromArgb(255, 128, 128);
             btnDelete.FlatStyle = FlatStyle.Flat;
             btnDelete.ForeColor = SystemColors.ActiveCaptionText;
-            btnDelete.Location = new Point(136, 580);
+            btnDelete.Location = new Point(137, 549);
             btnDelete.Name = "btnDelete";
-            btnDelete.Size = new Size(118, 40);
+            btnDelete.Size = new Size(118, 29);
             btnDelete.TabIndex = 18;
             btnDelete.Text = "Delete";
             btnDelete.UseVisualStyleBackColor = false;
@@ -306,7 +306,7 @@ namespace BoardingHouse
             detailsClosebtn.BackColor = Color.FromArgb(255, 128, 128);
             detailsClosebtn.FlatStyle = FlatStyle.Flat;
             detailsClosebtn.ForeColor = SystemColors.ActiveCaptionText;
-            detailsClosebtn.Location = new Point(479, 3);
+            detailsClosebtn.Location = new Point(484, 3);
             detailsClosebtn.Name = "detailsClosebtn";
             detailsClosebtn.Size = new Size(53, 29);
             detailsClosebtn.TabIndex = 17;
@@ -320,9 +320,9 @@ namespace BoardingHouse
             btnUpdate.BackColor = Color.FromArgb(255, 255, 128);
             btnUpdate.FlatStyle = FlatStyle.Flat;
             btnUpdate.ForeColor = SystemColors.ActiveCaptionText;
-            btnUpdate.Location = new Point(305, 580);
+            btnUpdate.Location = new Point(306, 549);
             btnUpdate.Name = "btnUpdate";
-            btnUpdate.Size = new Size(118, 40);
+            btnUpdate.Size = new Size(118, 29);
             btnUpdate.TabIndex = 15;
             btnUpdate.Text = "Update";
             btnUpdate.UseVisualStyleBackColor = false;
@@ -332,7 +332,7 @@ namespace BoardingHouse
             // panel1
             // 
             panel1.BackColor = Color.DarkGray;
-            panel1.Location = new Point(22, 399);
+            panel1.Location = new Point(23, 397);
             panel1.Name = "panel1";
             panel1.Size = new Size(478, 13);
             panel1.TabIndex = 14;
@@ -341,7 +341,7 @@ namespace BoardingHouse
             // 
             label9.AutoSize = true;
             label9.Font = new Font("Segoe UI Semibold", 10.8F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            label9.Location = new Point(37, 491);
+            label9.Location = new Point(38, 471);
             label9.Name = "label9";
             label9.Size = new Size(90, 25);
             label9.TabIndex = 13;
@@ -349,7 +349,7 @@ namespace BoardingHouse
             // 
             // details_txtLongitude
             // 
-            details_txtLongitude.Location = new Point(37, 519);
+            details_txtLongitude.Location = new Point(38, 499);
             details_txtLongitude.Multiline = true;
             details_txtLongitude.Name = "details_txtLongitude";
             details_txtLongitude.Size = new Size(455, 27);
@@ -359,7 +359,7 @@ namespace BoardingHouse
             // 
             label8.AutoSize = true;
             label8.Font = new Font("Segoe UI Semibold", 10.8F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            label8.Location = new Point(35, 429);
+            label8.Location = new Point(36, 413);
             label8.Name = "label8";
             label8.Size = new Size(107, 25);
             label8.TabIndex = 11;
@@ -367,7 +367,7 @@ namespace BoardingHouse
             // 
             // details_txtLatitude
             // 
-            details_txtLatitude.Location = new Point(35, 457);
+            details_txtLatitude.Location = new Point(36, 441);
             details_txtLatitude.Multiline = true;
             details_txtLatitude.Name = "details_txtLatitude";
             details_txtLatitude.Size = new Size(455, 27);
@@ -377,7 +377,7 @@ namespace BoardingHouse
             // 
             label7.AutoSize = true;
             label7.Font = new Font("Segoe UI Semibold", 10.8F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            label7.Location = new Point(325, 294);
+            label7.Location = new Point(325, 291);
             label7.Name = "label7";
             label7.Size = new Size(158, 25);
             label7.TabIndex = 9;
@@ -387,7 +387,7 @@ namespace BoardingHouse
             // 
             label6.AutoSize = true;
             label6.Font = new Font("Segoe UI Semibold", 10.8F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            label6.Location = new Point(333, 26);
+            label6.Location = new Point(333, 23);
             label6.Name = "label6";
             label6.Size = new Size(100, 25);
             label6.TabIndex = 7;
@@ -396,7 +396,7 @@ namespace BoardingHouse
             // details_picThumbnail
             // 
             details_picThumbnail.BackColor = Color.WhiteSmoke;
-            details_picThumbnail.Location = new Point(333, 57);
+            details_picThumbnail.Location = new Point(333, 54);
             details_picThumbnail.Name = "details_picThumbnail";
             details_picThumbnail.Size = new Size(161, 131);
             details_picThumbnail.SizeMode = PictureBoxSizeMode.StretchImage;
@@ -405,7 +405,7 @@ namespace BoardingHouse
             // 
             // details_txtAvailableRooms
             // 
-            details_txtAvailableRooms.Location = new Point(325, 322);
+            details_txtAvailableRooms.Location = new Point(325, 319);
             details_txtAvailableRooms.Multiline = true;
             details_txtAvailableRooms.Name = "details_txtAvailableRooms";
             details_txtAvailableRooms.Size = new Size(169, 28);
@@ -416,7 +416,7 @@ namespace BoardingHouse
             // 
             label5.AutoSize = true;
             label5.Font = new Font("Segoe UI Semibold", 10.8F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            label5.Location = new Point(35, 168);
+            label5.Location = new Point(35, 165);
             label5.Name = "label5";
             label5.Size = new Size(88, 25);
             label5.TabIndex = 5;
@@ -426,7 +426,7 @@ namespace BoardingHouse
             // 
             label3.AutoSize = true;
             label3.Font = new Font("Segoe UI Semibold", 10.8F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            label3.Location = new Point(35, 26);
+            label3.Location = new Point(35, 23);
             label3.Name = "label3";
             label3.Size = new Size(99, 25);
             label3.TabIndex = 3;
@@ -434,7 +434,7 @@ namespace BoardingHouse
             // 
             // details_txtTotalRooms
             // 
-            details_txtTotalRooms.Location = new Point(325, 265);
+            details_txtTotalRooms.Location = new Point(325, 262);
             details_txtTotalRooms.Multiline = true;
             details_txtTotalRooms.Name = "details_txtTotalRooms";
             details_txtTotalRooms.Size = new Size(169, 28);
@@ -444,7 +444,7 @@ namespace BoardingHouse
             // 
             label4.AutoSize = true;
             label4.Font = new Font("Segoe UI Semibold", 10.8F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            label4.Location = new Point(325, 237);
+            label4.Location = new Point(325, 234);
             label4.Name = "label4";
             label4.Size = new Size(123, 25);
             label4.TabIndex = 4;
@@ -452,7 +452,7 @@ namespace BoardingHouse
             // 
             // details_txtAddress
             // 
-            details_txtAddress.Location = new Point(35, 196);
+            details_txtAddress.Location = new Point(35, 193);
             details_txtAddress.Multiline = true;
             details_txtAddress.Name = "details_txtAddress";
             details_txtAddress.Size = new Size(211, 27);
@@ -460,7 +460,7 @@ namespace BoardingHouse
             // 
             // details_txtBHName
             // 
-            details_txtBHName.Location = new Point(35, 57);
+            details_txtBHName.Location = new Point(35, 54);
             details_txtBHName.Multiline = true;
             details_txtBHName.Name = "details_txtBHName";
             details_txtBHName.Size = new Size(212, 29);
@@ -472,7 +472,7 @@ namespace BoardingHouse
             mapSingleModal.Controls.Add(mapSingleWebView);
             mapSingleModal.Location = new Point(3, 0);
             mapSingleModal.Name = "mapSingleModal";
-            mapSingleModal.Size = new Size(534, 320);
+            mapSingleModal.Size = new Size(534, 360);
             mapSingleModal.TabIndex = 18;
             // 
             // mapSingleWebView
@@ -485,7 +485,7 @@ namespace BoardingHouse
             mapSingleWebView.Location = new Point(0, 0);
             mapSingleWebView.Margin = new Padding(0);
             mapSingleWebView.Name = "mapSingleWebView";
-            mapSingleWebView.Size = new Size(534, 320);
+            mapSingleWebView.Size = new Size(534, 360);
             mapSingleWebView.TabIndex = 11;
             mapSingleWebView.ZoomFactor = 1D;
             // 
@@ -540,9 +540,9 @@ namespace BoardingHouse
             AddModal.Controls.Add(txtAddress);
             AddModal.Controls.Add(txtBHName);
             AddModal.ForeColor = SystemColors.ActiveCaptionText;
-            AddModal.Location = new Point(3, 326);
+            AddModal.Location = new Point(3, 365);
             AddModal.Name = "AddModal";
-            AddModal.Size = new Size(540, 655);
+            AddModal.Size = new Size(540, 610);
             AddModal.TabIndex = 9;
             AddModal.Visible = false;
             // 
@@ -550,7 +550,7 @@ namespace BoardingHouse
             // 
             label11.AutoSize = true;
             label11.Font = new Font("Segoe UI Semibold", 10.8F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            label11.Location = new Point(267, 209);
+            label11.Location = new Point(247, 235);
             label11.Name = "label11";
             label11.Size = new Size(287, 25);
             label11.TabIndex = 33;
@@ -561,7 +561,7 @@ namespace BoardingHouse
             locateBtn.BackColor = Color.FromArgb(192, 192, 255);
             locateBtn.FlatStyle = FlatStyle.Flat;
             locateBtn.ForeColor = SystemColors.ActiveCaptionText;
-            locateBtn.Location = new Point(50, 527);
+            locateBtn.Location = new Point(48, 497);
             locateBtn.Name = "locateBtn";
             locateBtn.Size = new Size(90, 29);
             locateBtn.TabIndex = 32;
@@ -571,7 +571,7 @@ namespace BoardingHouse
             // 
             // txtThumbnailPath
             // 
-            txtThumbnailPath.Location = new Point(333, 41);
+            txtThumbnailPath.Location = new Point(333, 69);
             txtThumbnailPath.Multiline = true;
             txtThumbnailPath.Name = "txtThumbnailPath";
             txtThumbnailPath.Size = new Size(161, 20);
@@ -582,7 +582,7 @@ namespace BoardingHouse
             // 
             label21.AutoSize = true;
             label21.Font = new Font("Segoe UI Semibold", 10.8F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            label21.Location = new Point(37, 91);
+            label21.Location = new Point(39, 107);
             label21.Name = "label21";
             label21.Size = new Size(110, 25);
             label21.TabIndex = 30;
@@ -590,7 +590,7 @@ namespace BoardingHouse
             // 
             // txtContactNo
             // 
-            txtContactNo.Location = new Point(38, 119);
+            txtContactNo.Location = new Point(40, 135);
             txtContactNo.Multiline = true;
             txtContactNo.Name = "txtContactNo";
             txtContactNo.Size = new Size(211, 29);
@@ -600,7 +600,7 @@ namespace BoardingHouse
             // 
             label20.AutoSize = true;
             label20.Font = new Font("Segoe UI Semibold", 10.8F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            label20.Location = new Point(38, 253);
+            label20.Location = new Point(38, 247);
             label20.Name = "label20";
             label20.Size = new Size(77, 25);
             label20.TabIndex = 28;
@@ -611,7 +611,7 @@ namespace BoardingHouse
             cbOwner.AutoCompleteMode = AutoCompleteMode.SuggestAppend;
             cbOwner.AutoCompleteSource = AutoCompleteSource.ListItems;
             cbOwner.FormattingEnabled = true;
-            cbOwner.Location = new Point(38, 281);
+            cbOwner.Location = new Point(38, 275);
             cbOwner.Name = "cbOwner";
             cbOwner.Size = new Size(212, 28);
             cbOwner.TabIndex = 27;
@@ -620,7 +620,7 @@ namespace BoardingHouse
             // addBrowseBtn
             // 
             addBrowseBtn.ForeColor = SystemColors.ActiveCaptionText;
-            addBrowseBtn.Location = new Point(333, 175);
+            addBrowseBtn.Location = new Point(333, 203);
             addBrowseBtn.Name = "addBrowseBtn";
             addBrowseBtn.Size = new Size(78, 29);
             addBrowseBtn.TabIndex = 18;
@@ -647,9 +647,9 @@ namespace BoardingHouse
             btnSave.BackColor = Color.FromArgb(128, 255, 128);
             btnSave.FlatStyle = FlatStyle.Flat;
             btnSave.ForeColor = SystemColors.ActiveCaptionText;
-            btnSave.Location = new Point(332, 577);
+            btnSave.Location = new Point(344, 549);
             btnSave.Name = "btnSave";
-            btnSave.Size = new Size(151, 40);
+            btnSave.Size = new Size(118, 29);
             btnSave.TabIndex = 16;
             btnSave.Text = "Save";
             btnSave.UseVisualStyleBackColor = false;
@@ -658,9 +658,9 @@ namespace BoardingHouse
             // btnCancel
             // 
             btnCancel.FlatStyle = FlatStyle.Flat;
-            btnCancel.Location = new Point(67, 577);
+            btnCancel.Location = new Point(79, 549);
             btnCancel.Name = "btnCancel";
-            btnCancel.Size = new Size(151, 40);
+            btnCancel.Size = new Size(118, 29);
             btnCancel.TabIndex = 15;
             btnCancel.Text = "Cancel";
             btnCancel.UseVisualStyleBackColor = true;
@@ -669,7 +669,7 @@ namespace BoardingHouse
             // panel3
             // 
             panel3.BackColor = Color.DarkGray;
-            panel3.Location = new Point(37, 344);
+            panel3.Location = new Point(38, 331);
             panel3.Name = "panel3";
             panel3.Size = new Size(478, 13);
             panel3.TabIndex = 14;
@@ -678,7 +678,7 @@ namespace BoardingHouse
             // 
             label2.AutoSize = true;
             label2.Font = new Font("Segoe UI Semibold", 10.8F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            label2.Location = new Point(50, 446);
+            label2.Location = new Point(38, 435);
             label2.Name = "label2";
             label2.Size = new Size(90, 25);
             label2.TabIndex = 13;
@@ -686,7 +686,7 @@ namespace BoardingHouse
             // 
             // txtLatitude
             // 
-            txtLatitude.Location = new Point(50, 474);
+            txtLatitude.Location = new Point(38, 463);
             txtLatitude.Multiline = true;
             txtLatitude.Name = "txtLatitude";
             txtLatitude.Size = new Size(455, 28);
@@ -696,7 +696,7 @@ namespace BoardingHouse
             // 
             label10.AutoSize = true;
             label10.Font = new Font("Segoe UI Semibold", 10.8F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            label10.Location = new Point(50, 374);
+            label10.Location = new Point(38, 369);
             label10.Name = "label10";
             label10.Size = new Size(107, 25);
             label10.TabIndex = 11;
@@ -704,7 +704,7 @@ namespace BoardingHouse
             // 
             // txtLongitude
             // 
-            txtLongitude.Location = new Point(50, 402);
+            txtLongitude.Location = new Point(38, 397);
             txtLongitude.Multiline = true;
             txtLongitude.Name = "txtLongitude";
             txtLongitude.Size = new Size(455, 28);
@@ -714,7 +714,7 @@ namespace BoardingHouse
             // 
             label12.AutoSize = true;
             label12.Font = new Font("Segoe UI Semibold", 10.8F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            label12.Location = new Point(333, 7);
+            label12.Location = new Point(333, 35);
             label12.Name = "label12";
             label12.Size = new Size(100, 25);
             label12.TabIndex = 7;
@@ -723,7 +723,7 @@ namespace BoardingHouse
             // picThumbnail
             // 
             picThumbnail.BackColor = Color.WhiteSmoke;
-            picThumbnail.Location = new Point(333, 38);
+            picThumbnail.Location = new Point(333, 66);
             picThumbnail.Name = "picThumbnail";
             picThumbnail.Size = new Size(161, 131);
             picThumbnail.SizeMode = PictureBoxSizeMode.StretchImage;
@@ -734,7 +734,7 @@ namespace BoardingHouse
             // 
             label13.AutoSize = true;
             label13.Font = new Font("Segoe UI Semibold", 10.8F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            label13.Location = new Point(38, 177);
+            label13.Location = new Point(39, 180);
             label13.Name = "label13";
             label13.Size = new Size(88, 25);
             label13.TabIndex = 5;
@@ -744,7 +744,7 @@ namespace BoardingHouse
             // 
             label15.AutoSize = true;
             label15.Font = new Font("Segoe UI Semibold", 10.8F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            label15.Location = new Point(38, 7);
+            label15.Location = new Point(38, 35);
             label15.Name = "label15";
             label15.Size = new Size(99, 25);
             label15.TabIndex = 3;
@@ -752,7 +752,7 @@ namespace BoardingHouse
             // 
             // txtAddress
             // 
-            txtAddress.Location = new Point(39, 205);
+            txtAddress.Location = new Point(40, 208);
             txtAddress.Multiline = true;
             txtAddress.Name = "txtAddress";
             txtAddress.Size = new Size(212, 29);
@@ -760,7 +760,7 @@ namespace BoardingHouse
             // 
             // txtBHName
             // 
-            txtBHName.Location = new Point(39, 38);
+            txtBHName.Location = new Point(39, 66);
             txtBHName.Multiline = true;
             txtBHName.Name = "txtBHName";
             txtBHName.Size = new Size(212, 29);
@@ -840,17 +840,18 @@ namespace BoardingHouse
             mapLocatorModal.Controls.Add(panel7);
             mapLocatorModal.Controls.Add(button1);
             mapLocatorModal.Controls.Add(mapLocatorWebView);
-            mapLocatorModal.Location = new Point(18, 118);
+            mapLocatorModal.Location = new Point(26, 98);
             mapLocatorModal.Name = "mapLocatorModal";
-            mapLocatorModal.Size = new Size(1226, 759);
+            mapLocatorModal.Size = new Size(1517, 867);
             mapLocatorModal.TabIndex = 11;
             mapLocatorModal.Visible = false;
+            mapLocatorModal.Paint += mapLocatorModal_Paint;
             // 
             // button2
             // 
             button2.BackColor = Color.FromArgb(128, 255, 128);
             button2.FlatStyle = FlatStyle.Flat;
-            button2.Location = new Point(959, 699);
+            button2.Location = new Point(1224, 749);
             button2.Name = "button2";
             button2.Size = new Size(151, 40);
             button2.TabIndex = 17;
@@ -863,7 +864,7 @@ namespace BoardingHouse
             label27.AutoSize = true;
             label27.Font = new Font("Segoe UI Semibold", 13.8F, FontStyle.Bold, GraphicsUnit.Point, 0);
             label27.ForeColor = SystemColors.ButtonHighlight;
-            label27.Location = new Point(878, 529);
+            label27.Location = new Point(1149, 544);
             label27.Name = "label27";
             label27.Size = new Size(110, 31);
             label27.TabIndex = 15;
@@ -872,7 +873,7 @@ namespace BoardingHouse
             // panel14
             // 
             panel14.Controls.Add(locateLatTxt);
-            panel14.Location = new Point(878, 566);
+            panel14.Location = new Point(1136, 581);
             panel14.Name = "panel14";
             panel14.Size = new Size(309, 44);
             panel14.TabIndex = 14;
@@ -893,7 +894,7 @@ namespace BoardingHouse
             label25.AutoSize = true;
             label25.Font = new Font("Segoe UI Semibold", 13.8F, FontStyle.Bold, GraphicsUnit.Point, 0);
             label25.ForeColor = SystemColors.ButtonHighlight;
-            label25.Location = new Point(878, 305);
+            label25.Location = new Point(1136, 320);
             label25.Name = "label25";
             label25.Size = new Size(131, 31);
             label25.TabIndex = 13;
@@ -902,7 +903,7 @@ namespace BoardingHouse
             // panel8
             // 
             panel8.Controls.Add(locateLongTxt);
-            panel8.Location = new Point(878, 342);
+            panel8.Location = new Point(1136, 357);
             panel8.Name = "panel8";
             panel8.Size = new Size(309, 49);
             panel8.TabIndex = 12;
@@ -923,7 +924,7 @@ namespace BoardingHouse
             label23.AutoSize = true;
             label23.Font = new Font("Segoe UI Semibold", 13.8F, FontStyle.Bold, GraphicsUnit.Point, 0);
             label23.ForeColor = SystemColors.ButtonHighlight;
-            label23.Location = new Point(878, 103);
+            label23.Location = new Point(1136, 121);
             label23.Name = "label23";
             label23.Size = new Size(110, 31);
             label23.TabIndex = 11;
@@ -932,7 +933,7 @@ namespace BoardingHouse
             // panel7
             // 
             panel7.Controls.Add(locateAddressTxt);
-            panel7.Location = new Point(878, 140);
+            panel7.Location = new Point(1136, 155);
             panel7.Name = "panel7";
             panel7.Size = new Size(309, 49);
             panel7.TabIndex = 10;
@@ -952,7 +953,7 @@ namespace BoardingHouse
             // 
             button1.BackColor = Color.FromArgb(255, 128, 128);
             button1.FlatStyle = FlatStyle.Flat;
-            button1.Location = new Point(1167, 3);
+            button1.Location = new Point(1463, 3);
             button1.Name = "button1";
             button1.Size = new Size(51, 29);
             button1.TabIndex = 9;
@@ -965,9 +966,9 @@ namespace BoardingHouse
             mapLocatorWebView.AllowExternalDrop = true;
             mapLocatorWebView.CreationProperties = null;
             mapLocatorWebView.DefaultBackgroundColor = Color.White;
-            mapLocatorWebView.Location = new Point(17, 22);
+            mapLocatorWebView.Location = new Point(17, 18);
             mapLocatorWebView.Name = "mapLocatorWebView";
-            mapLocatorWebView.Size = new Size(809, 729);
+            mapLocatorWebView.Size = new Size(1070, 827);
             mapLocatorWebView.TabIndex = 0;
             mapLocatorWebView.ZoomFactor = 1D;
             // 
@@ -979,9 +980,9 @@ namespace BoardingHouse
             mapModal.Controls.Add(panel6);
             mapModal.Controls.Add(panel5);
             mapModal.Controls.Add(panel4);
-            mapModal.Location = new Point(3, 132);
+            mapModal.Location = new Point(3, 80);
             mapModal.Name = "mapModal";
-            mapModal.Size = new Size(942, 808);
+            mapModal.Size = new Size(1585, 895);
             mapModal.TabIndex = 12;
             mapModal.Visible = false;
             mapModal.Paint += mapModal_Paint;
@@ -991,9 +992,9 @@ namespace BoardingHouse
             mapWebView.AllowExternalDrop = true;
             mapWebView.CreationProperties = null;
             mapWebView.DefaultBackgroundColor = Color.White;
-            mapWebView.Location = new Point(17, 38);
+            mapWebView.Location = new Point(17, 18);
             mapWebView.Name = "mapWebView";
-            mapWebView.Size = new Size(907, 757);
+            mapWebView.Size = new Size(1149, 858);
             mapWebView.TabIndex = 9;
             mapWebView.ZoomFactor = 1D;
             // 
@@ -1001,7 +1002,7 @@ namespace BoardingHouse
             // 
             closemapBtn.BackColor = Color.FromArgb(255, 192, 192);
             closemapBtn.FlatStyle = FlatStyle.Flat;
-            closemapBtn.Location = new Point(886, 3);
+            closemapBtn.Location = new Point(1531, 3);
             closemapBtn.Name = "closemapBtn";
             closemapBtn.Size = new Size(51, 29);
             closemapBtn.TabIndex = 8;
@@ -1014,7 +1015,7 @@ namespace BoardingHouse
             panel6.BackColor = Color.WhiteSmoke;
             panel6.Controls.Add(totalInactive);
             panel6.Controls.Add(label26);
-            panel6.Location = new Point(956, 610);
+            panel6.Location = new Point(1236, 610);
             panel6.Name = "panel6";
             panel6.Size = new Size(277, 185);
             panel6.TabIndex = 12;
@@ -1044,7 +1045,7 @@ namespace BoardingHouse
             panel5.BackColor = Color.WhiteSmoke;
             panel5.Controls.Add(totalActive);
             panel5.Controls.Add(label24);
-            panel5.Location = new Point(956, 333);
+            panel5.Location = new Point(1236, 333);
             panel5.Name = "panel5";
             panel5.Size = new Size(277, 185);
             panel5.TabIndex = 11;
@@ -1074,7 +1075,7 @@ namespace BoardingHouse
             panel4.BackColor = Color.WhiteSmoke;
             panel4.Controls.Add(totalBH);
             panel4.Controls.Add(label22);
-            panel4.Location = new Point(956, 53);
+            panel4.Location = new Point(1236, 53);
             panel4.Name = "panel4";
             panel4.Size = new Size(277, 185);
             panel4.TabIndex = 10;
@@ -1329,8 +1330,8 @@ namespace BoardingHouse
             AutoScaleDimensions = new SizeF(8F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
             BackColor = Color.White;
-            Controls.Add(mapLocatorModal);
             Controls.Add(mapModal);
+            Controls.Add(mapLocatorModal);
             Controls.Add(bhStatsContainer);
             Controls.Add(panel9);
             Controls.Add(rightPanel);

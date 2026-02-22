@@ -18,6 +18,9 @@ namespace BoardingHouse
         private int? _currentRentalId = null;
         private DateTime _currentBillMonth = DateTime.MinValue;
         private int? _selectedBillingItemId = null;
+        private string? _billingAmountColumnName = null;
+        private string? _billingStatusEnumColumnType = null;
+        private bool? _billingHasUpdatedAtColumn = null;
         public int CurrentUserId { get; set; }
 
         private string _receiptToPrint = "";
@@ -58,6 +61,213 @@ namespace BoardingHouse
         private DateTime NormalizeBillMonth(DateTime dt)
         {
             return new DateTime(dt.Year, dt.Month, 1);
+        }
+
+        // rentals.rental_id is the single source of truth for payments and billing in this screen.
+        private string GetBillingAmountColumn(MySqlConnection conn, MySqlTransaction? tx = null)
+        {
+            if (!string.IsNullOrWhiteSpace(_billingAmountColumnName))
+                return _billingAmountColumnName!;
+
+            using var cmd = new MySqlCommand(@"
+                SELECT COLUMN_NAME
+                FROM INFORMATION_SCHEMA.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE()
+                  AND TABLE_NAME = 'billing_items'
+                  AND COLUMN_NAME IN ('amount_due','amount')
+                ORDER BY CASE COLUMN_NAME WHEN 'amount_due' THEN 0 ELSE 1 END
+                LIMIT 1;", conn, tx);
+
+            var col = cmd.ExecuteScalar()?.ToString();
+            _billingAmountColumnName = string.Equals(col, "amount_due", StringComparison.OrdinalIgnoreCase)
+                ? "amount_due"
+                : "amount";
+            return _billingAmountColumnName!;
+        }
+
+        private bool BillingSupportsStatus(MySqlConnection conn, MySqlTransaction tx, string statusValue)
+        {
+            if (string.IsNullOrWhiteSpace(_billingStatusEnumColumnType))
+            {
+                using var cmd = new MySqlCommand(@"
+                    SELECT COLUMN_TYPE
+                    FROM INFORMATION_SCHEMA.COLUMNS
+                    WHERE TABLE_SCHEMA = DATABASE()
+                      AND TABLE_NAME = 'billing_items'
+                      AND COLUMN_NAME = 'status'
+                    LIMIT 1;", conn, tx);
+                _billingStatusEnumColumnType = cmd.ExecuteScalar()?.ToString() ?? "";
+            }
+
+            return _billingStatusEnumColumnType
+                .IndexOf("'" + statusValue + "'", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        private bool BillingHasUpdatedAtColumn(MySqlConnection conn, MySqlTransaction tx)
+        {
+            if (_billingHasUpdatedAtColumn.HasValue)
+                return _billingHasUpdatedAtColumn.Value;
+
+            using var cmd = new MySqlCommand(@"
+                SELECT COUNT(*)
+                FROM INFORMATION_SCHEMA.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE()
+                  AND TABLE_NAME = 'billing_items'
+                  AND COLUMN_NAME = 'updated_at';", conn, tx);
+
+            _billingHasUpdatedAtColumn = Convert.ToInt32(cmd.ExecuteScalar() ?? 0) > 0;
+            return _billingHasUpdatedAtColumn.Value;
+        }
+
+        private bool IsRentalActive(MySqlConnection conn, MySqlTransaction tx, int rentalId)
+        {
+            using var cmd = new MySqlCommand(@"
+                SELECT COUNT(*)
+                FROM rentals
+                WHERE id=@rentalId
+                  AND status='ACTIVE'
+                  AND (end_date IS NULL OR end_date>=CURDATE());", conn, tx);
+            cmd.Parameters.AddWithValue("@rentalId", rentalId);
+            return Convert.ToInt32(cmd.ExecuteScalar() ?? 0) > 0;
+        }
+
+        private bool BillingItemExistsForRentalMonth(MySqlConnection conn, MySqlTransaction tx, int rentalId, DateTime billMonth)
+        {
+            var normalized = NormalizeBillMonth(billMonth);
+            using var cmd = new MySqlCommand(@"
+                SELECT COUNT(*)
+                FROM billing_items
+                WHERE rental_id=@rentalId
+                  AND bill_month=@billMonth
+                  AND status<>'VOID';", conn, tx);
+            cmd.Parameters.AddWithValue("@rentalId", rentalId);
+            cmd.Parameters.AddWithValue("@billMonth", normalized.ToString("yyyy-MM-dd"));
+            return Convert.ToInt32(cmd.ExecuteScalar() ?? 0) > 0;
+        }
+
+        // Recomputes billing month status from posted payments. Kept in the same transaction as posting/voiding.
+        private void UpdateBillingItemStatus(MySqlConnection conn, MySqlTransaction tx, int rentalId, DateTime billMonth)
+        {
+            var normalized = NormalizeBillMonth(billMonth);
+            string amountCol = GetBillingAmountColumn(conn, tx);
+
+            decimal due;
+            using (var cmdDue = new MySqlCommand($@"
+                SELECT COALESCE(SUM({amountCol}),0)
+                FROM billing_items
+                WHERE rental_id=@rentalId
+                  AND bill_month=@billMonth
+                  AND status<>'VOID';", conn, tx))
+            {
+                cmdDue.Parameters.AddWithValue("@rentalId", rentalId);
+                cmdDue.Parameters.AddWithValue("@billMonth", normalized.ToString("yyyy-MM-dd"));
+                due = Convert.ToDecimal(cmdDue.ExecuteScalar() ?? 0m);
+            }
+
+            decimal paid;
+            using (var cmdPaid = new MySqlCommand(@"
+                SELECT COALESCE(SUM(amount),0)
+                FROM payments
+                WHERE rental_id=@rentalId
+                  AND bill_month=@billMonth
+                  AND status='POSTED';", conn, tx))
+            {
+                cmdPaid.Parameters.AddWithValue("@rentalId", rentalId);
+                cmdPaid.Parameters.AddWithValue("@billMonth", normalized.ToString("yyyy-MM-dd"));
+                paid = Convert.ToDecimal(cmdPaid.ExecuteScalar() ?? 0m);
+            }
+
+            string nextStatus;
+            if (due > 0m && paid + 0.01m >= due)
+            {
+                nextStatus = "PAID";
+            }
+            else if (paid > 0m && BillingSupportsStatus(conn, tx, "PARTIAL"))
+            {
+                nextStatus = "PARTIAL";
+            }
+            else
+            {
+                nextStatus = "UNPAID";
+            }
+
+            string updateSql = BillingHasUpdatedAtColumn(conn, tx)
+                ? @"
+                    UPDATE billing_items
+                    SET status=@newStatus, updated_at=NOW()
+                    WHERE rental_id=@rentalId
+                      AND bill_month=@billMonth
+                      AND status<>'VOID';"
+                : @"
+                    UPDATE billing_items
+                    SET status=@newStatus
+                    WHERE rental_id=@rentalId
+                      AND bill_month=@billMonth
+                      AND status<>'VOID';";
+
+            using var cmdUpdate = new MySqlCommand(updateSql, conn, tx);
+            cmdUpdate.Parameters.AddWithValue("@newStatus", nextStatus);
+            cmdUpdate.Parameters.AddWithValue("@rentalId", rentalId);
+            cmdUpdate.Parameters.AddWithValue("@billMonth", normalized.ToString("yyyy-MM-dd"));
+            cmdUpdate.ExecuteNonQuery();
+        }
+
+        private int PostPaymentToRental(int rentalId, DateTime billMonth, decimal amount, string method, string referenceNo, string remarks, DateTime paymentDate)
+        {
+            if (rentalId <= 0)
+                throw new InvalidOperationException("Select an ACTIVE rental first.");
+            if (amount <= 0m)
+                throw new InvalidOperationException("Amount must be greater than zero.");
+
+            var normalizedBillMonth = NormalizeBillMonth(billMonth);
+
+            using (var connCheck = DbConnectionFactory.CreateConnection())
+            using (var cmdActive = new MySqlCommand(@"
+                SELECT COUNT(*)
+                FROM rentals
+                WHERE id=@rentalId
+                  AND status='ACTIVE'
+                  AND (end_date IS NULL OR end_date>=CURDATE());", connCheck))
+            {
+                cmdActive.Parameters.AddWithValue("@rentalId", rentalId);
+                if (Convert.ToInt32(cmdActive.ExecuteScalar() ?? 0) <= 0)
+                    throw new InvalidOperationException("Selected rental is not ACTIVE.");
+            }
+
+            // Existing app flow expects monthly rent billing row to exist; keep this behavior without duplicates.
+            EnsureRentBillingItem(rentalId, normalizedBillMonth);
+
+            using var conn = DbConnectionFactory.CreateConnection();
+            using var tx = conn.BeginTransaction();
+
+            if (!IsRentalActive(conn, tx, rentalId))
+                throw new InvalidOperationException("Selected rental is not ACTIVE.");
+
+            if (!BillingItemExistsForRentalMonth(conn, tx, rentalId, normalizedBillMonth))
+                throw new InvalidOperationException("No billing item found for this month.");
+
+            int paymentId;
+            using (var cmd = new MySqlCommand(@"
+                INSERT INTO payments
+                (rental_id, payment_date, bill_month, amount, method, reference_no, remarks, status, received_by, created_at)
+                VALUES
+                (@rentalId, @payDate, @billMonth, @amount, @method, @refNo, @remarks, 'POSTED', @receivedBy, NOW());
+                SELECT LAST_INSERT_ID();", conn, tx))
+            {
+                cmd.Parameters.AddWithValue("@rentalId", rentalId);
+                cmd.Parameters.AddWithValue("@payDate", paymentDate);
+                cmd.Parameters.AddWithValue("@billMonth", normalizedBillMonth.ToString("yyyy-MM-dd"));
+                cmd.Parameters.AddWithValue("@amount", amount);
+                cmd.Parameters.AddWithValue("@method", method);
+                cmd.Parameters.AddWithValue("@refNo", string.IsNullOrWhiteSpace(referenceNo) ? (object)DBNull.Value : referenceNo.Trim());
+                cmd.Parameters.AddWithValue("@remarks", string.IsNullOrWhiteSpace(remarks) ? (object)DBNull.Value : remarks.Trim());
+                cmd.Parameters.AddWithValue("@receivedBy", CurrentUserId > 0 ? (object)CurrentUserId : 1);
+                paymentId = Convert.ToInt32(cmd.ExecuteScalar() ?? 0);
+            }
+
+            UpdateBillingItemStatus(conn, tx, rentalId, normalizedBillMonth);
+            tx.Commit();
+            return paymentId;
         }
 
         private static decimal ParseMoney(string? input)
@@ -309,8 +519,9 @@ namespace BoardingHouse
             lvChargeList.Items.Clear();
 
             using var conn = DbConnectionFactory.CreateConnection();
-            using var cmd = new MySqlCommand(@"
-                SELECT id, charge_type, description, amount, status
+            string amountCol = GetBillingAmountColumn(conn);
+            using var cmd = new MySqlCommand($@"
+                SELECT id, charge_type, description, {amountCol} AS amount, status
                 FROM billing_items
                 WHERE rental_id=@rentalId AND bill_month=@billMonth
                 ORDER BY FIELD(charge_type,'RENT','ELECTRIC','WATER','INTERNET','PENALTY','OTHER'), id;", conn);
@@ -352,6 +563,7 @@ namespace BoardingHouse
 
             using var conn = DbConnectionFactory.CreateConnection();
             using var tx = conn.BeginTransaction();
+            string amountCol = GetBillingAmountColumn(conn, tx);
 
             using (var cmdCheck = new MySqlCommand(@"
                 SELECT id
@@ -382,9 +594,9 @@ namespace BoardingHouse
 
             if (monthlyRate < 0) monthlyRate = 0m;
 
-            using (var cmdInsert = new MySqlCommand(@"
+            using (var cmdInsert = new MySqlCommand($@"
                 INSERT INTO billing_items
-                (rental_id, bill_month, charge_type, description, amount, status, created_at)
+                (rental_id, bill_month, charge_type, description, {amountCol}, status, created_at)
                 VALUES
                 (@rentalId, @billMonth, 'RENT', @description, @amount, 'UNPAID', NOW());", conn, tx))
             {
@@ -726,66 +938,14 @@ namespace BoardingHouse
 
             try
             {
-                using var conn = DbConnectionFactory.CreateConnection();
-                using var tx = conn.BeginTransaction();
-
-                // 1) Insert payment
-                int paymentId;
-                using (var cmd = new MySqlCommand(@"
-                    INSERT INTO payments
-                    (rental_id, payment_date, bill_month, amount, method, reference_no, remarks, status, received_by, created_at)
-                    VALUES
-                    (@rentalId, @payDate, @billMonth, @amount, @method, @refNo, @remarks, 'POSTED', 1, NOW());
-                    SELECT LAST_INSERT_ID();", conn, tx))
-                {
-                    cmd.Parameters.AddWithValue("@rentalId", _selectedRentalId.Value);
-                    cmd.Parameters.AddWithValue("@payDate", DateTime.Now);
-                    cmd.Parameters.AddWithValue("@billMonth", billMonth.ToString("yyyy-MM-dd"));
-                    cmd.Parameters.AddWithValue("@amount", amount);
-                    cmd.Parameters.AddWithValue("@method", method);
-                    cmd.Parameters.AddWithValue("@refNo", string.IsNullOrWhiteSpace(refNo) ? (object)DBNull.Value : refNo);
-                    cmd.Parameters.AddWithValue("@remarks", string.IsNullOrWhiteSpace(remarks) ? (object)DBNull.Value : remarks);
-
-                    paymentId = Convert.ToInt32(cmd.ExecuteScalar());
-                }
-
-                // 2) Apply payment to UNPAID billing_items (simple full-item coverage only)
-                decimal remaining = amount;
-
-                using (var cmdGet = new MySqlCommand(@"
-                    SELECT id, amount
-                    FROM billing_items
-                    WHERE rental_id=@rentalId AND bill_month=@billMonth AND status='UNPAID'
-                    ORDER BY FIELD(charge_type,'RENT','ELECTRIC','WATER','INTERNET','PENALTY','OTHER'), id;", conn, tx))
-                {
-                    cmdGet.Parameters.AddWithValue("@rentalId", _selectedRentalId.Value);
-                    cmdGet.Parameters.AddWithValue("@billMonth", billMonth.ToString("yyyy-MM-dd"));
-
-                    using var r = cmdGet.ExecuteReader();
-                    var unpaid = new System.Collections.Generic.List<(int id, decimal amt)>();
-                    while (r.Read())
-                        unpaid.Add((Convert.ToInt32(r["id"]), Convert.ToDecimal(r["amount"])));
-                    r.Close();
-
-                    foreach (var item in unpaid)
-                    {
-                        if (remaining <= 0) break;
-
-                        if (remaining >= item.amt)
-                        {
-                            using var cmdUpd = new MySqlCommand(@"
-                                UPDATE billing_items
-                                SET status='PAID'
-                                WHERE id=@id;", conn, tx);
-                            cmdUpd.Parameters.AddWithValue("@id", item.id);
-                            cmdUpd.ExecuteNonQuery();
-
-                            remaining -= item.amt;
-                        }
-                    }
-                }
-
-                tx.Commit();
+                int paymentId = PostPaymentToRental(
+                    _selectedRentalId.Value,
+                    billMonth,
+                    amount,
+                    method,
+                    refNo,
+                    remarks,
+                    DateTime.Now);
 
                 MessageBox.Show($"Payment posted. (Payment ID: {paymentId})", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
@@ -866,6 +1026,7 @@ namespace BoardingHouse
             {
                 using var conn = DbConnectionFactory.CreateConnection();
                 using var tx = conn.BeginTransaction();
+                string amountCol = GetBillingAmountColumn(conn, tx);
 
                 int? existingId = null;
                 string existingStatus = "";
@@ -899,9 +1060,9 @@ namespace BoardingHouse
 
                 if (existingId == null)
                 {
-                    using var cmdInsert = new MySqlCommand(@"
+                    using var cmdInsert = new MySqlCommand($@"
                         INSERT INTO billing_items
-                        (rental_id, bill_month, charge_type, description, amount, status, created_at)
+                        (rental_id, bill_month, charge_type, description, {amountCol}, status, created_at)
                         VALUES
                         (@rentalId, @billMonth, @chargeType, @description, @amount, 'UNPAID', NOW());", conn, tx);
                     cmdInsert.Parameters.AddWithValue("@rentalId", _currentRentalId.Value);
@@ -913,9 +1074,9 @@ namespace BoardingHouse
                 }
                 else
                 {
-                    using var cmdUpdate = new MySqlCommand(@"
+                    using var cmdUpdate = new MySqlCommand($@"
                         UPDATE billing_items
-                        SET description=@description, amount=@amount
+                        SET description=@description, {amountCol}=@amount
                         WHERE id=@id AND status!='PAID';", conn, tx);
                     cmdUpdate.Parameters.AddWithValue("@id", existingId.Value);
                     cmdUpdate.Parameters.AddWithValue("@description", descriptionParam);
@@ -1257,16 +1418,8 @@ namespace BoardingHouse
                     cmdVoid.ExecuteNonQuery();
                 }
 
-                // Simplified revert: all PAID billing items in that month are set back to UNPAID.
-                using (var cmdRevert = new MySqlCommand(@"
-                    UPDATE billing_items
-                    SET status='UNPAID'
-                    WHERE rental_id=@rentalId AND bill_month=@billMonth AND status='PAID';", conn, tx))
-                {
-                    cmdRevert.Parameters.AddWithValue("@rentalId", _selectedRentalId.Value);
-                    cmdRevert.Parameters.AddWithValue("@billMonth", billMonth.ToString("yyyy-MM-dd"));
-                    cmdRevert.ExecuteNonQuery();
-                }
+                // Recompute month status from remaining POSTED payments after void.
+                UpdateBillingItemStatus(conn, tx, _selectedRentalId.Value, billMonth);
 
                 tx.Commit();
 

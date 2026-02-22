@@ -53,27 +53,6 @@ namespace BoardingHouse
             lblAlertsTitle = new Label();
             txtAlerts = new TextBox();
             gbReservations = new GroupBox();
-            lblBoardingHouse = new Label();
-            cbBoardingHouse = new ComboBox();
-            lblRoom = new Label();
-            cbRoom = new ComboBox();
-            lblStatusFilter = new Label();
-            cbStatusFilter = new ComboBox();
-            lblFrom = new Label();
-            dtFilterFrom = new DateTimePicker();
-            lblTo = new Label();
-            dtFilterTo = new DateTimePicker();
-            txtSearch = new TextBox();
-            btnSearch = new Button();
-            btnClear = new Button();
-            dgvReservations = new DataGridView();
-            colResId = new DataGridViewTextBoxColumn();
-            colBH = new DataGridViewTextBoxColumn();
-            colRoomNo = new DataGridViewTextBoxColumn();
-            colOccupant = new DataGridViewTextBoxColumn();
-            colFrom = new DataGridViewTextBoxColumn();
-            colTo = new DataGridViewTextBoxColumn();
-            colStatus = new DataGridViewTextBoxColumn();
             pnlEditor = new Panel();
             lblEditorTitle = new Label();
             btnCloseEditor = new Button();
@@ -95,6 +74,27 @@ namespace BoardingHouse
             btnAddUpdate = new Button();
             btnVoidSelected = new Button();
             btnEditorClear = new Button();
+            lblBoardingHouse = new Label();
+            cbBoardingHouse = new ComboBox();
+            lblRoom = new Label();
+            cbRoom = new ComboBox();
+            lblStatusFilter = new Label();
+            cbStatusFilter = new ComboBox();
+            lblFrom = new Label();
+            dtFilterFrom = new DateTimePicker();
+            lblTo = new Label();
+            dtFilterTo = new DateTimePicker();
+            txtSearch = new TextBox();
+            btnSearch = new Button();
+            btnClear = new Button();
+            dgvReservations = new DataGridView();
+            colResId = new DataGridViewTextBoxColumn();
+            colBH = new DataGridViewTextBoxColumn();
+            colRoomNo = new DataGridViewTextBoxColumn();
+            colOccupant = new DataGridViewTextBoxColumn();
+            colFrom = new DataGridViewTextBoxColumn();
+            colTo = new DataGridViewTextBoxColumn();
+            colStatus = new DataGridViewTextBoxColumn();
             pnlHeader.SuspendLayout();
             pnlMain.SuspendLayout();
             pnlRight.SuspendLayout();
@@ -102,8 +102,8 @@ namespace BoardingHouse
             ((ISupportInitialize)dgvAuditLogs).BeginInit();
             gbSummary.SuspendLayout();
             gbReservations.SuspendLayout();
-            ((ISupportInitialize)dgvReservations).BeginInit();
             pnlEditor.SuspendLayout();
+            ((ISupportInitialize)dgvReservations).BeginInit();
             SuspendLayout();
             // 
             // pnlHeader
@@ -462,199 +462,6 @@ namespace BoardingHouse
             gbReservations.TabStop = false;
             gbReservations.Text = "Reservation Details";
             // 
-            // lblBoardingHouse
-            // 
-            lblBoardingHouse.AutoSize = true;
-            lblBoardingHouse.Location = new Point(14, 36);
-            lblBoardingHouse.Name = "lblBoardingHouse";
-            lblBoardingHouse.Size = new Size(136, 23);
-            lblBoardingHouse.TabIndex = 0;
-            lblBoardingHouse.Text = "Boarding House:";
-            // 
-            // cbBoardingHouse
-            // 
-            cbBoardingHouse.DropDownStyle = ComboBoxStyle.DropDownList;
-            cbBoardingHouse.FormattingEnabled = true;
-            cbBoardingHouse.Location = new Point(154, 33);
-            cbBoardingHouse.Name = "cbBoardingHouse";
-            cbBoardingHouse.Size = new Size(190, 31);
-            cbBoardingHouse.TabIndex = 1;
-            cbBoardingHouse.SelectedIndexChanged += cbBoardingHouse_SelectedIndexChanged;
-            // 
-            // lblRoom
-            // 
-            lblRoom.AutoSize = true;
-            lblRoom.Location = new Point(362, 36);
-            lblRoom.Name = "lblRoom";
-            lblRoom.Size = new Size(59, 23);
-            lblRoom.TabIndex = 2;
-            lblRoom.Text = "Room:";
-            // 
-            // cbRoom
-            // 
-            cbRoom.DropDownStyle = ComboBoxStyle.DropDownList;
-            cbRoom.FormattingEnabled = true;
-            cbRoom.Location = new Point(426, 33);
-            cbRoom.Name = "cbRoom";
-            cbRoom.Size = new Size(150, 31);
-            cbRoom.TabIndex = 3;
-            cbRoom.SelectedIndexChanged += cbRoom_SelectedIndexChanged;
-            // 
-            // lblStatusFilter
-            // 
-            lblStatusFilter.AutoSize = true;
-            lblStatusFilter.Location = new Point(592, 36);
-            lblStatusFilter.Name = "lblStatusFilter";
-            lblStatusFilter.Size = new Size(56, 23);
-            lblStatusFilter.TabIndex = 4;
-            lblStatusFilter.Text = "Status";
-            // 
-            // cbStatusFilter
-            // 
-            cbStatusFilter.DropDownStyle = ComboBoxStyle.DropDownList;
-            cbStatusFilter.FormattingEnabled = true;
-            cbStatusFilter.Items.AddRange(new object[] { "ALL", "PENDING", "APPROVED", "REJECTED", "CANCELLED", "EXPIRED", "CHECKED_IN" });
-            cbStatusFilter.Location = new Point(654, 33);
-            cbStatusFilter.Name = "cbStatusFilter";
-            cbStatusFilter.Size = new Size(160, 31);
-            cbStatusFilter.TabIndex = 5;
-            cbStatusFilter.SelectedIndexChanged += cbStatusFilter_SelectedIndexChanged;
-            // 
-            // lblFrom
-            // 
-            lblFrom.AutoSize = true;
-            lblFrom.Location = new Point(14, 75);
-            lblFrom.Name = "lblFrom";
-            lblFrom.Size = new Size(49, 23);
-            lblFrom.TabIndex = 6;
-            lblFrom.Text = "From";
-            // 
-            // dtFilterFrom
-            // 
-            dtFilterFrom.CustomFormat = "yyyy-MM-dd";
-            dtFilterFrom.Format = DateTimePickerFormat.Custom;
-            dtFilterFrom.Location = new Point(69, 70);
-            dtFilterFrom.Name = "dtFilterFrom";
-            dtFilterFrom.Size = new Size(130, 30);
-            dtFilterFrom.TabIndex = 7;
-            dtFilterFrom.ValueChanged += dtFilterFrom_ValueChanged;
-            // 
-            // lblTo
-            // 
-            lblTo.AutoSize = true;
-            lblTo.Location = new Point(210, 75);
-            lblTo.Name = "lblTo";
-            lblTo.Size = new Size(27, 23);
-            lblTo.TabIndex = 8;
-            lblTo.Text = "To";
-            // 
-            // dtFilterTo
-            // 
-            dtFilterTo.CustomFormat = "yyyy-MM-dd";
-            dtFilterTo.Format = DateTimePickerFormat.Custom;
-            dtFilterTo.Location = new Point(243, 70);
-            dtFilterTo.Name = "dtFilterTo";
-            dtFilterTo.Size = new Size(130, 30);
-            dtFilterTo.TabIndex = 9;
-            dtFilterTo.ValueChanged += dtFilterTo_ValueChanged;
-            // 
-            // txtSearch
-            // 
-            txtSearch.Location = new Point(379, 71);
-            txtSearch.Name = "txtSearch";
-            txtSearch.PlaceholderText = "Search occupant, room no, reservation id...";
-            txtSearch.Size = new Size(352, 30);
-            txtSearch.TabIndex = 10;
-            // 
-            // btnSearch
-            // 
-            btnSearch.FlatStyle = FlatStyle.Flat;
-            btnSearch.Location = new Point(737, 70);
-            btnSearch.Name = "btnSearch";
-            btnSearch.Size = new Size(98, 32);
-            btnSearch.TabIndex = 11;
-            btnSearch.Text = "Search";
-            btnSearch.UseVisualStyleBackColor = true;
-            btnSearch.Click += btnSearch_Click;
-            // 
-            // btnClear
-            // 
-            btnClear.FlatStyle = FlatStyle.Flat;
-            btnClear.Location = new Point(841, 70);
-            btnClear.Name = "btnClear";
-            btnClear.Size = new Size(98, 32);
-            btnClear.TabIndex = 12;
-            btnClear.Text = "Clear";
-            btnClear.UseVisualStyleBackColor = true;
-            btnClear.Click += btnClear_Click;
-            // 
-            // dgvReservations
-            // 
-            dgvReservations.AllowUserToAddRows = false;
-            dgvReservations.AllowUserToDeleteRows = false;
-            dgvReservations.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
-            dgvReservations.BackgroundColor = Color.White;
-            dgvReservations.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dgvReservations.Columns.AddRange(new DataGridViewColumn[] { colResId, colBH, colRoomNo, colOccupant, colFrom, colTo, colStatus });
-            dgvReservations.Location = new Point(13, 109);
-            dgvReservations.MultiSelect = false;
-            dgvReservations.Name = "dgvReservations";
-            dgvReservations.ReadOnly = true;
-            dgvReservations.RowHeadersVisible = false;
-            dgvReservations.RowHeadersWidth = 51;
-            dgvReservations.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
-            dgvReservations.Size = new Size(954, 751);
-            dgvReservations.TabIndex = 14;
-            // 
-            // colResId
-            // 
-            colResId.HeaderText = "ID";
-            colResId.MinimumWidth = 6;
-            colResId.Name = "colResId";
-            colResId.ReadOnly = true;
-            // 
-            // colBH
-            // 
-            colBH.HeaderText = "Boarding House";
-            colBH.MinimumWidth = 6;
-            colBH.Name = "colBH";
-            colBH.ReadOnly = true;
-            // 
-            // colRoomNo
-            // 
-            colRoomNo.HeaderText = "Room No";
-            colRoomNo.MinimumWidth = 6;
-            colRoomNo.Name = "colRoomNo";
-            colRoomNo.ReadOnly = true;
-            // 
-            // colOccupant
-            // 
-            colOccupant.HeaderText = "Occupant";
-            colOccupant.MinimumWidth = 6;
-            colOccupant.Name = "colOccupant";
-            colOccupant.ReadOnly = true;
-            // 
-            // colFrom
-            // 
-            colFrom.HeaderText = "From";
-            colFrom.MinimumWidth = 6;
-            colFrom.Name = "colFrom";
-            colFrom.ReadOnly = true;
-            // 
-            // colTo
-            // 
-            colTo.HeaderText = "To";
-            colTo.MinimumWidth = 6;
-            colTo.Name = "colTo";
-            colTo.ReadOnly = true;
-            // 
-            // colStatus
-            // 
-            colStatus.HeaderText = "Status";
-            colStatus.MinimumWidth = 6;
-            colStatus.Name = "colStatus";
-            colStatus.ReadOnly = true;
-            // 
             // pnlEditor
             // 
             pnlEditor.Anchor = AnchorStyles.None;
@@ -890,6 +697,199 @@ namespace BoardingHouse
             btnEditorClear.UseVisualStyleBackColor = true;
             btnEditorClear.Click += btnEditorClear_Click;
             // 
+            // lblBoardingHouse
+            // 
+            lblBoardingHouse.AutoSize = true;
+            lblBoardingHouse.Location = new Point(14, 36);
+            lblBoardingHouse.Name = "lblBoardingHouse";
+            lblBoardingHouse.Size = new Size(136, 23);
+            lblBoardingHouse.TabIndex = 0;
+            lblBoardingHouse.Text = "Boarding House:";
+            // 
+            // cbBoardingHouse
+            // 
+            cbBoardingHouse.DropDownStyle = ComboBoxStyle.DropDownList;
+            cbBoardingHouse.FormattingEnabled = true;
+            cbBoardingHouse.Location = new Point(154, 33);
+            cbBoardingHouse.Name = "cbBoardingHouse";
+            cbBoardingHouse.Size = new Size(190, 31);
+            cbBoardingHouse.TabIndex = 1;
+            cbBoardingHouse.SelectedIndexChanged += cbBoardingHouse_SelectedIndexChanged;
+            // 
+            // lblRoom
+            // 
+            lblRoom.AutoSize = true;
+            lblRoom.Location = new Point(362, 36);
+            lblRoom.Name = "lblRoom";
+            lblRoom.Size = new Size(59, 23);
+            lblRoom.TabIndex = 2;
+            lblRoom.Text = "Room:";
+            // 
+            // cbRoom
+            // 
+            cbRoom.DropDownStyle = ComboBoxStyle.DropDownList;
+            cbRoom.FormattingEnabled = true;
+            cbRoom.Location = new Point(426, 33);
+            cbRoom.Name = "cbRoom";
+            cbRoom.Size = new Size(150, 31);
+            cbRoom.TabIndex = 3;
+            cbRoom.SelectedIndexChanged += cbRoom_SelectedIndexChanged;
+            // 
+            // lblStatusFilter
+            // 
+            lblStatusFilter.AutoSize = true;
+            lblStatusFilter.Location = new Point(592, 36);
+            lblStatusFilter.Name = "lblStatusFilter";
+            lblStatusFilter.Size = new Size(56, 23);
+            lblStatusFilter.TabIndex = 4;
+            lblStatusFilter.Text = "Status";
+            // 
+            // cbStatusFilter
+            // 
+            cbStatusFilter.DropDownStyle = ComboBoxStyle.DropDownList;
+            cbStatusFilter.FormattingEnabled = true;
+            cbStatusFilter.Items.AddRange(new object[] { "ALL", "PENDING", "APPROVED", "REJECTED", "CANCELLED", "EXPIRED", "CHECKED_IN" });
+            cbStatusFilter.Location = new Point(654, 33);
+            cbStatusFilter.Name = "cbStatusFilter";
+            cbStatusFilter.Size = new Size(160, 31);
+            cbStatusFilter.TabIndex = 5;
+            cbStatusFilter.SelectedIndexChanged += cbStatusFilter_SelectedIndexChanged;
+            // 
+            // lblFrom
+            // 
+            lblFrom.AutoSize = true;
+            lblFrom.Location = new Point(14, 75);
+            lblFrom.Name = "lblFrom";
+            lblFrom.Size = new Size(49, 23);
+            lblFrom.TabIndex = 6;
+            lblFrom.Text = "From";
+            // 
+            // dtFilterFrom
+            // 
+            dtFilterFrom.CustomFormat = "yyyy-MM-dd";
+            dtFilterFrom.Format = DateTimePickerFormat.Custom;
+            dtFilterFrom.Location = new Point(69, 70);
+            dtFilterFrom.Name = "dtFilterFrom";
+            dtFilterFrom.Size = new Size(130, 30);
+            dtFilterFrom.TabIndex = 7;
+            dtFilterFrom.ValueChanged += dtFilterFrom_ValueChanged;
+            // 
+            // lblTo
+            // 
+            lblTo.AutoSize = true;
+            lblTo.Location = new Point(210, 75);
+            lblTo.Name = "lblTo";
+            lblTo.Size = new Size(27, 23);
+            lblTo.TabIndex = 8;
+            lblTo.Text = "To";
+            // 
+            // dtFilterTo
+            // 
+            dtFilterTo.CustomFormat = "yyyy-MM-dd";
+            dtFilterTo.Format = DateTimePickerFormat.Custom;
+            dtFilterTo.Location = new Point(243, 70);
+            dtFilterTo.Name = "dtFilterTo";
+            dtFilterTo.Size = new Size(130, 30);
+            dtFilterTo.TabIndex = 9;
+            dtFilterTo.ValueChanged += dtFilterTo_ValueChanged;
+            // 
+            // txtSearch
+            // 
+            txtSearch.Location = new Point(379, 71);
+            txtSearch.Name = "txtSearch";
+            txtSearch.PlaceholderText = "Search occupant, room no, reservation id...";
+            txtSearch.Size = new Size(352, 30);
+            txtSearch.TabIndex = 10;
+            // 
+            // btnSearch
+            // 
+            btnSearch.FlatStyle = FlatStyle.Flat;
+            btnSearch.Location = new Point(737, 70);
+            btnSearch.Name = "btnSearch";
+            btnSearch.Size = new Size(98, 32);
+            btnSearch.TabIndex = 11;
+            btnSearch.Text = "Search";
+            btnSearch.UseVisualStyleBackColor = true;
+            btnSearch.Click += btnSearch_Click;
+            // 
+            // btnClear
+            // 
+            btnClear.FlatStyle = FlatStyle.Flat;
+            btnClear.Location = new Point(841, 70);
+            btnClear.Name = "btnClear";
+            btnClear.Size = new Size(98, 32);
+            btnClear.TabIndex = 12;
+            btnClear.Text = "Clear";
+            btnClear.UseVisualStyleBackColor = true;
+            btnClear.Click += btnClear_Click;
+            // 
+            // dgvReservations
+            // 
+            dgvReservations.AllowUserToAddRows = false;
+            dgvReservations.AllowUserToDeleteRows = false;
+            dgvReservations.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            dgvReservations.BackgroundColor = Color.White;
+            dgvReservations.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            dgvReservations.Columns.AddRange(new DataGridViewColumn[] { colResId, colBH, colRoomNo, colOccupant, colFrom, colTo, colStatus });
+            dgvReservations.Location = new Point(13, 109);
+            dgvReservations.MultiSelect = false;
+            dgvReservations.Name = "dgvReservations";
+            dgvReservations.ReadOnly = true;
+            dgvReservations.RowHeadersVisible = false;
+            dgvReservations.RowHeadersWidth = 51;
+            dgvReservations.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+            dgvReservations.Size = new Size(954, 751);
+            dgvReservations.TabIndex = 14;
+            // 
+            // colResId
+            // 
+            colResId.HeaderText = "ID";
+            colResId.MinimumWidth = 6;
+            colResId.Name = "colResId";
+            colResId.ReadOnly = true;
+            // 
+            // colBH
+            // 
+            colBH.HeaderText = "Boarding House";
+            colBH.MinimumWidth = 6;
+            colBH.Name = "colBH";
+            colBH.ReadOnly = true;
+            // 
+            // colRoomNo
+            // 
+            colRoomNo.HeaderText = "Room No";
+            colRoomNo.MinimumWidth = 6;
+            colRoomNo.Name = "colRoomNo";
+            colRoomNo.ReadOnly = true;
+            // 
+            // colOccupant
+            // 
+            colOccupant.HeaderText = "Occupant";
+            colOccupant.MinimumWidth = 6;
+            colOccupant.Name = "colOccupant";
+            colOccupant.ReadOnly = true;
+            // 
+            // colFrom
+            // 
+            colFrom.HeaderText = "From";
+            colFrom.MinimumWidth = 6;
+            colFrom.Name = "colFrom";
+            colFrom.ReadOnly = true;
+            // 
+            // colTo
+            // 
+            colTo.HeaderText = "To";
+            colTo.MinimumWidth = 6;
+            colTo.Name = "colTo";
+            colTo.ReadOnly = true;
+            // 
+            // colStatus
+            // 
+            colStatus.HeaderText = "Status";
+            colStatus.MinimumWidth = 6;
+            colStatus.Name = "colStatus";
+            colStatus.ReadOnly = true;
+            // 
             // ReservationsView
             // 
             AutoScaleDimensions = new SizeF(9F, 23F);
@@ -911,9 +911,9 @@ namespace BoardingHouse
             gbSummary.PerformLayout();
             gbReservations.ResumeLayout(false);
             gbReservations.PerformLayout();
-            ((ISupportInitialize)dgvReservations).EndInit();
             pnlEditor.ResumeLayout(false);
             pnlEditor.PerformLayout();
+            ((ISupportInitialize)dgvReservations).EndInit();
             ResumeLayout(false);
         }
 

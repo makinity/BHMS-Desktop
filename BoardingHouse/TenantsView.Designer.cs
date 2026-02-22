@@ -34,6 +34,8 @@ namespace BoardingHouse
             details_profilePathTxt = new TextBox();
             detailsTenantImg = new PictureBox();
             endRentalBtn = new Button();
+            btnStartRental = new Button();
+            btnViewCurrentRental = new Button();
             cbDetailsRoom = new ComboBox();
             label4 = new Label();
             tenantUpdateBtn = new Button();
@@ -57,10 +59,6 @@ namespace BoardingHouse
             detailsLastname = new TextBox();
             labelRoomNo = new Label();
             addTenantsModal = new Panel();
-            txtStudentNo = new TextBox();
-            labelStudentNo = new Label();
-            label18 = new Label();
-            cbOccType = new ComboBox();
             registrationOpenCameraBtn = new Button();
             browseProfileBtn = new Button();
             profilePathTxt = new TextBox();
@@ -332,6 +330,8 @@ namespace BoardingHouse
             grpDetails.Controls.Add(details_profilePathTxt);
             grpDetails.Controls.Add(detailsTenantImg);
             grpDetails.Controls.Add(endRentalBtn);
+            grpDetails.Controls.Add(btnStartRental);
+            grpDetails.Controls.Add(btnViewCurrentRental);
             grpDetails.Controls.Add(cbDetailsRoom);
             grpDetails.Controls.Add(label4);
             grpDetails.Controls.Add(tenantUpdateBtn);
@@ -372,6 +372,7 @@ namespace BoardingHouse
             ViewRoomBtn.Size = new Size(30, 20);
             ViewRoomBtn.TabIndex = 70;
             ViewRoomBtn.Text = "👁";
+            ViewRoomBtn.Visible = false;
             ViewRoomBtn.Click += ViewRoomBtn_Click;
             // 
             // detailsOpenCameraBtn
@@ -428,6 +429,32 @@ namespace BoardingHouse
             endRentalBtn.Visible = false;
             endRentalBtn.Click += endRentalBtn_Click;
             // 
+            // btnStartRental
+            // 
+            btnStartRental.BackColor = Color.FromArgb(255, 224, 192);
+            btnStartRental.ForeColor = SystemColors.ActiveCaptionText;
+            btnStartRental.Location = new Point(191, 721);
+            btnStartRental.Name = "btnStartRental";
+            btnStartRental.Size = new Size(151, 28);
+            btnStartRental.TabIndex = 32;
+            btnStartRental.Text = "Start Rental";
+            btnStartRental.UseVisualStyleBackColor = false;
+            btnStartRental.Visible = false;
+            btnStartRental.Click += btnStartRental_Click;
+            // 
+            // btnViewCurrentRental
+            // 
+            btnViewCurrentRental.BackColor = Color.FromArgb(192, 255, 255);
+            btnViewCurrentRental.ForeColor = SystemColors.ActiveCaptionText;
+            btnViewCurrentRental.Location = new Point(191, 689);
+            btnViewCurrentRental.Name = "btnViewCurrentRental";
+            btnViewCurrentRental.Size = new Size(151, 28);
+            btnViewCurrentRental.TabIndex = 31;
+            btnViewCurrentRental.Text = "View Current Rental";
+            btnViewCurrentRental.UseVisualStyleBackColor = false;
+            btnViewCurrentRental.Visible = false;
+            btnViewCurrentRental.Click += btnViewCurrentRental_Click;
+            // 
             // cbDetailsRoom
             // 
             cbDetailsRoom.FormattingEnabled = true;
@@ -435,6 +462,7 @@ namespace BoardingHouse
             cbDetailsRoom.Name = "cbDetailsRoom";
             cbDetailsRoom.Size = new Size(151, 28);
             cbDetailsRoom.TabIndex = 30;
+            cbDetailsRoom.Visible = false;
             // 
             // label4
             // 
@@ -445,6 +473,7 @@ namespace BoardingHouse
             label4.Size = new Size(49, 20);
             label4.TabIndex = 29;
             label4.Text = "Room";
+            label4.Visible = false;
             label4.Click += label4_Click;
             // 
             // tenantUpdateBtn
@@ -647,10 +676,6 @@ namespace BoardingHouse
             addTenantsModal.Anchor = AnchorStyles.None;
             addTenantsModal.BackColor = Color.FromArgb(48, 54, 92);
             addTenantsModal.BorderStyle = BorderStyle.FixedSingle;
-            addTenantsModal.Controls.Add(txtStudentNo);
-            addTenantsModal.Controls.Add(labelStudentNo);
-            addTenantsModal.Controls.Add(label18);
-            addTenantsModal.Controls.Add(cbOccType);
             addTenantsModal.Controls.Add(registrationOpenCameraBtn);
             addTenantsModal.Controls.Add(browseProfileBtn);
             addTenantsModal.Controls.Add(profilePathTxt);
@@ -684,49 +709,10 @@ namespace BoardingHouse
             addTenantsModal.Visible = false;
             addTenantsModal.Paint += addTenantsModal_Paint;
             // 
-            // txtStudentNo
-            // 
-            txtStudentNo.Location = new Point(210, 176);
-            txtStudentNo.Name = "txtStudentNo";
-            txtStudentNo.Size = new Size(124, 27);
-            txtStudentNo.TabIndex = 69;
-            txtStudentNo.Visible = false;
-            // 
-            // labelStudentNo
-            // 
-            labelStudentNo.AutoSize = true;
-            labelStudentNo.ForeColor = SystemColors.ButtonHighlight;
-            labelStudentNo.Location = new Point(210, 153);
-            labelStudentNo.Name = "labelStudentNo";
-            labelStudentNo.Size = new Size(84, 20);
-            labelStudentNo.TabIndex = 70;
-            labelStudentNo.Text = "Student No";
-            labelStudentNo.Visible = false;
-            // 
-            // label18
-            // 
-            label18.AutoSize = true;
-            label18.ForeColor = SystemColors.ButtonHighlight;
-            label18.Location = new Point(48, 153);
-            label18.Name = "label18";
-            label18.Size = new Size(110, 20);
-            label18.TabIndex = 68;
-            label18.Text = "Occupant Type:";
-            // 
-            // cbOccType
-            // 
-            cbOccType.FormattingEnabled = true;
-            cbOccType.Items.AddRange(new object[] { "TENANT", "STUDENT" });
-            cbOccType.Location = new Point(45, 176);
-            cbOccType.Name = "cbOccType";
-            cbOccType.Size = new Size(151, 28);
-            cbOccType.TabIndex = 67;
-            cbOccType.SelectedIndexChanged += cbOccType_SelectedIndexChanged;
-            // 
             // registrationOpenCameraBtn
             // 
             registrationOpenCameraBtn.ForeColor = SystemColors.ActiveCaptionText;
-            registrationOpenCameraBtn.Location = new Point(511, 107);
+            registrationOpenCameraBtn.Location = new Point(425, 109);
             registrationOpenCameraBtn.Name = "registrationOpenCameraBtn";
             registrationOpenCameraBtn.Size = new Size(85, 28);
             registrationOpenCameraBtn.TabIndex = 66;
@@ -737,7 +723,7 @@ namespace BoardingHouse
             // browseProfileBtn
             // 
             browseProfileBtn.ForeColor = SystemColors.ActiveCaptionText;
-            browseProfileBtn.Location = new Point(511, 73);
+            browseProfileBtn.Location = new Point(425, 75);
             browseProfileBtn.Name = "browseProfileBtn";
             browseProfileBtn.Size = new Size(85, 28);
             browseProfileBtn.TabIndex = 65;
@@ -747,7 +733,7 @@ namespace BoardingHouse
             // 
             // profilePathTxt
             // 
-            profilePathTxt.Location = new Point(368, 73);
+            profilePathTxt.Location = new Point(282, 75);
             profilePathTxt.Multiline = true;
             profilePathTxt.Name = "profilePathTxt";
             profilePathTxt.Size = new Size(136, 10);
@@ -757,7 +743,7 @@ namespace BoardingHouse
             // addTenantImg
             // 
             addTenantImg.BackColor = Color.White;
-            addTenantImg.Location = new Point(368, 73);
+            addTenantImg.Location = new Point(282, 75);
             addTenantImg.Name = "addTenantImg";
             addTenantImg.Size = new Size(136, 131);
             addTenantImg.SizeMode = PictureBoxSizeMode.StretchImage;
@@ -1403,6 +1389,8 @@ namespace BoardingHouse
         private Button tenantDeleteBtn;
         private ComboBox cbDetailsRoom;
         private Label label4;
+        private Button btnViewCurrentRental;
+        private Button btnStartRental;
         private Panel addTenantsModal;
         private Label totalTenants;
         private Button clearTenantFormBtn;
@@ -1471,9 +1459,5 @@ namespace BoardingHouse
         private Button btnSnapshotOpenPayments;
         private Button btnSnapshotViewRoom;
         private Button btnSnapshotRefresh;
-        private Label label18;
-        private ComboBox cbOccType;
-        private TextBox txtStudentNo;
-        private Label labelStudentNo;
     }
 }

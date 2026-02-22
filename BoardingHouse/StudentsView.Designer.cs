@@ -94,20 +94,18 @@
             browseProfileBtn = new Button();
             profilePathTxt = new TextBox();
             addStudentImg = new PictureBox();
-            addTenantCloseBtn = new Button();
             totalStudents = new Label();
             label15 = new Label();
             detailsModal = new Panel();
             lblStudentTitle = new Label();
             grpDetails = new GroupBox();
-            ViewRoomBtn = new Label();
             detailsOpenCameraBtn = new Button();
             detailsBrowseProfileBtn = new Button();
             details_profilePathTxt = new TextBox();
             detailsStudenttImg = new PictureBox();
             endRentalBtn = new Button();
-            cbDetailsRoom = new ComboBox();
-            label4 = new Label();
+            btnStartRental = new Button();
+            btnViewCurrentRental = new Button();
             studentUpdateBtn = new Button();
             studentDeleteBtn = new Button();
             detailsCbStatus = new ComboBox();
@@ -128,8 +126,17 @@
             labelType = new Label();
             detailsLastname = new TextBox();
             labelRoomNo = new Label();
-            cbOccType = new ComboBox();
-            label18 = new Label();
+            ViewRoomBtn = new Label();
+            cbDetailsRoom = new ComboBox();
+            label4 = new Label();
+            startRentalModal = new Panel();
+            btnCancelStartRental = new Button();
+            btnConfirmStartRental = new Button();
+            cbStartRentalRoom = new ComboBox();
+            labelStartRentalRoom = new Label();
+            lblStartRentalStudent = new Label();
+            labelStartRentalStudent = new Label();
+            lblStartRentalTitle = new Label();
             pnlSnapshotActions.SuspendLayout();
             studentsSnapshotPanel.SuspendLayout();
             pnlSnapshotCard.SuspendLayout();
@@ -142,6 +149,7 @@
             detailsModal.SuspendLayout();
             grpDetails.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)detailsStudenttImg).BeginInit();
+            startRentalModal.SuspendLayout();
             SuspendLayout();
             // 
             // btnSnapshotOpenPayments
@@ -152,6 +160,7 @@
             btnSnapshotOpenPayments.TabIndex = 1;
             btnSnapshotOpenPayments.Text = "Open Payments";
             btnSnapshotOpenPayments.UseVisualStyleBackColor = true;
+            btnSnapshotOpenPayments.Click += btnSnapshotOpenPayments_Click;
             // 
             // pnlSnapshotActions
             // 
@@ -184,6 +193,7 @@
             btnSnapshotViewRoom.TabIndex = 2;
             btnSnapshotViewRoom.Text = "View Room";
             btnSnapshotViewRoom.UseVisualStyleBackColor = true;
+            btnSnapshotViewRoom.Click += btnSnapshotViewRoom_Click;
             // 
             // btnSnapshotRefresh
             // 
@@ -193,6 +203,7 @@
             btnSnapshotRefresh.TabIndex = 3;
             btnSnapshotRefresh.Text = "Refresh";
             btnSnapshotRefresh.UseVisualStyleBackColor = true;
+            btnSnapshotRefresh.Click += btnSnapshotRefresh_Click;
             // 
             // studentsSnapshotPanel
             // 
@@ -591,8 +602,6 @@
             addStudentsModal.Controls.Add(registerTenantBtn);
             addStudentsModal.Controls.Add(txtStudentNo);
             addStudentsModal.Controls.Add(labelStudentNo);
-            addStudentsModal.Controls.Add(cbOccType);
-            addStudentsModal.Controls.Add(label18);
             addStudentsModal.Controls.Add(studentFirstnameTxt);
             addStudentsModal.Controls.Add(addStudentCloseBtn);
             addStudentsModal.Controls.Add(studentAddressTxt);
@@ -614,7 +623,6 @@
             addStudentsModal.Controls.Add(browseProfileBtn);
             addStudentsModal.Controls.Add(profilePathTxt);
             addStudentsModal.Controls.Add(addStudentImg);
-            addStudentsModal.Controls.Add(addTenantCloseBtn);
             addStudentsModal.Controls.Add(totalStudents);
             addStudentsModal.Controls.Add(label15);
             addStudentsModal.ForeColor = SystemColors.ButtonHighlight;
@@ -650,6 +658,7 @@
             // 
             txtStudentNo.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             txtStudentNo.Location = new Point(45, 184);
+            txtStudentNo.MaxLength = 30;
             txtStudentNo.Name = "txtStudentNo";
             txtStudentNo.Size = new Size(219, 27);
             txtStudentNo.TabIndex = 90;
@@ -668,9 +677,8 @@
             // 
             studentFirstnameTxt.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             studentFirstnameTxt.Location = new Point(45, 320);
-            studentFirstnameTxt.Multiline = true;
             studentFirstnameTxt.Name = "studentFirstnameTxt";
-            studentFirstnameTxt.Size = new Size(294, 40);
+            studentFirstnameTxt.Size = new Size(294, 27);
             studentFirstnameTxt.TabIndex = 88;
             // 
             // addStudentCloseBtn
@@ -684,6 +692,7 @@
             addStudentCloseBtn.TabIndex = 87;
             addStudentCloseBtn.Text = "X";
             addStudentCloseBtn.UseVisualStyleBackColor = false;
+            addStudentCloseBtn.Click += addStudentCloseBtn_Click;
             // 
             // studentAddressTxt
             // 
@@ -837,6 +846,7 @@
             registrationOpenCameraBtn.TabIndex = 66;
             registrationOpenCameraBtn.Text = "Camera";
             registrationOpenCameraBtn.UseVisualStyleBackColor = true;
+            registrationOpenCameraBtn.Click += registrationOpenCameraBtn_Click;
             // 
             // browseProfileBtn
             // 
@@ -847,6 +857,7 @@
             browseProfileBtn.TabIndex = 65;
             browseProfileBtn.Text = "Browse";
             browseProfileBtn.UseVisualStyleBackColor = true;
+            browseProfileBtn.Click += browseProfileBtn_Click;
             // 
             // profilePathTxt
             // 
@@ -866,18 +877,6 @@
             addStudentImg.SizeMode = PictureBoxSizeMode.StretchImage;
             addStudentImg.TabIndex = 63;
             addStudentImg.TabStop = false;
-            // 
-            // addTenantCloseBtn
-            // 
-            addTenantCloseBtn.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            addTenantCloseBtn.BackColor = Color.FromArgb(255, 128, 128);
-            addTenantCloseBtn.ForeColor = SystemColors.ActiveCaptionText;
-            addTenantCloseBtn.Location = new Point(620, 3);
-            addTenantCloseBtn.Name = "addTenantCloseBtn";
-            addTenantCloseBtn.Size = new Size(45, 28);
-            addTenantCloseBtn.TabIndex = 42;
-            addTenantCloseBtn.Text = "X";
-            addTenantCloseBtn.UseVisualStyleBackColor = false;
             // 
             // totalStudents
             // 
@@ -923,14 +922,13 @@
             // 
             grpDetails.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             grpDetails.BackColor = Color.FromArgb(48, 54, 92);
-            grpDetails.Controls.Add(ViewRoomBtn);
             grpDetails.Controls.Add(detailsOpenCameraBtn);
             grpDetails.Controls.Add(detailsBrowseProfileBtn);
             grpDetails.Controls.Add(details_profilePathTxt);
             grpDetails.Controls.Add(detailsStudenttImg);
             grpDetails.Controls.Add(endRentalBtn);
-            grpDetails.Controls.Add(cbDetailsRoom);
-            grpDetails.Controls.Add(label4);
+            grpDetails.Controls.Add(btnStartRental);
+            grpDetails.Controls.Add(btnViewCurrentRental);
             grpDetails.Controls.Add(studentUpdateBtn);
             grpDetails.Controls.Add(studentDeleteBtn);
             grpDetails.Controls.Add(detailsCbStatus);
@@ -960,15 +958,6 @@
             grpDetails.TabStop = false;
             grpDetails.Text = "Details";
             // 
-            // ViewRoomBtn
-            // 
-            ViewRoomBtn.AutoSize = true;
-            ViewRoomBtn.Location = new Point(318, 683);
-            ViewRoomBtn.Name = "ViewRoomBtn";
-            ViewRoomBtn.Size = new Size(30, 20);
-            ViewRoomBtn.TabIndex = 70;
-            ViewRoomBtn.Text = "👁";
-            // 
             // detailsOpenCameraBtn
             // 
             detailsOpenCameraBtn.ForeColor = SystemColors.ActiveCaptionText;
@@ -978,6 +967,7 @@
             detailsOpenCameraBtn.TabIndex = 69;
             detailsOpenCameraBtn.Text = "Camera";
             detailsOpenCameraBtn.UseVisualStyleBackColor = true;
+            detailsOpenCameraBtn.Click += detailsOpenCameraBtn_Click;
             // 
             // detailsBrowseProfileBtn
             // 
@@ -988,6 +978,7 @@
             detailsBrowseProfileBtn.TabIndex = 68;
             detailsBrowseProfileBtn.Text = "Browse";
             detailsBrowseProfileBtn.UseVisualStyleBackColor = true;
+            detailsBrowseProfileBtn.Click += detailsBrowseProfileBtn_Click;
             // 
             // details_profilePathTxt
             // 
@@ -1019,24 +1010,32 @@
             endRentalBtn.Text = "End Rental";
             endRentalBtn.UseVisualStyleBackColor = false;
             endRentalBtn.Visible = false;
+            endRentalBtn.Click += endRentalBtn_Click;
             // 
-            // cbDetailsRoom
+            // btnStartRental
             // 
-            cbDetailsRoom.FormattingEnabled = true;
-            cbDetailsRoom.Location = new Point(209, 707);
-            cbDetailsRoom.Name = "cbDetailsRoom";
-            cbDetailsRoom.Size = new Size(151, 28);
-            cbDetailsRoom.TabIndex = 30;
+            btnStartRental.BackColor = Color.FromArgb(255, 224, 192);
+            btnStartRental.ForeColor = SystemColors.ActiveCaptionText;
+            btnStartRental.Location = new Point(209, 741);
+            btnStartRental.Name = "btnStartRental";
+            btnStartRental.Size = new Size(151, 28);
+            btnStartRental.TabIndex = 32;
+            btnStartRental.Text = "Start Rental";
+            btnStartRental.UseVisualStyleBackColor = false;
+            btnStartRental.Click += btnStartRental_Click;
             // 
-            // label4
+            // btnViewCurrentRental
             // 
-            label4.AutoSize = true;
-            label4.ForeColor = SystemColors.ButtonHighlight;
-            label4.Location = new Point(209, 684);
-            label4.Name = "label4";
-            label4.Size = new Size(49, 20);
-            label4.TabIndex = 29;
-            label4.Text = "Room";
+            btnViewCurrentRental.BackColor = Color.FromArgb(192, 255, 255);
+            btnViewCurrentRental.ForeColor = SystemColors.ActiveCaptionText;
+            btnViewCurrentRental.Location = new Point(209, 707);
+            btnViewCurrentRental.Name = "btnViewCurrentRental";
+            btnViewCurrentRental.Size = new Size(151, 28);
+            btnViewCurrentRental.TabIndex = 31;
+            btnViewCurrentRental.Text = "View Current Rental";
+            btnViewCurrentRental.UseVisualStyleBackColor = false;
+            btnViewCurrentRental.Visible = false;
+            btnViewCurrentRental.Click += btnViewCurrentRental_Click;
             // 
             // studentUpdateBtn
             // 
@@ -1049,6 +1048,7 @@
             studentUpdateBtn.Text = "Update";
             studentUpdateBtn.UseVisualStyleBackColor = false;
             studentUpdateBtn.Visible = false;
+            studentUpdateBtn.Click += studentUpdateBtn_Click;
             // 
             // studentDeleteBtn
             // 
@@ -1061,6 +1061,7 @@
             studentDeleteBtn.Text = "Delete";
             studentDeleteBtn.UseVisualStyleBackColor = false;
             studentDeleteBtn.Visible = false;
+            studentDeleteBtn.Click += studentDeleteBtn_Click;
             // 
             // detailsCbStatus
             // 
@@ -1226,26 +1227,124 @@
             labelRoomNo.TabIndex = 11;
             labelRoomNo.Text = "Lastname";
             // 
-            // cbOccType
+            // ViewRoomBtn
             // 
-            cbOccType.DropDownStyle = ComboBoxStyle.DropDownList;
-            cbOccType.FormattingEnabled = true;
-            cbOccType.Location = new Point(384, 183);
-            cbOccType.Name = "cbOccType";
-            cbOccType.Size = new Size(294, 28);
-            cbOccType.TabIndex = 92;
-            cbOccType.Visible = false;
+            ViewRoomBtn.AutoSize = true;
+            ViewRoomBtn.Location = new Point(318, 683);
+            ViewRoomBtn.Name = "ViewRoomBtn";
+            ViewRoomBtn.Size = new Size(30, 20);
+            ViewRoomBtn.TabIndex = 70;
+            ViewRoomBtn.Text = "👁";
             // 
-            // label18
+            // cbDetailsRoom
             // 
-            label18.AutoSize = true;
-            label18.ForeColor = SystemColors.ButtonHighlight;
-            label18.Location = new Point(384, 161);
-            label18.Name = "label18";
-            label18.Size = new Size(107, 20);
-            label18.TabIndex = 91;
-            label18.Text = "Occupant Type";
-            label18.Visible = false;
+            cbDetailsRoom.FormattingEnabled = true;
+            cbDetailsRoom.Location = new Point(209, 707);
+            cbDetailsRoom.Name = "cbDetailsRoom";
+            cbDetailsRoom.Size = new Size(151, 28);
+            cbDetailsRoom.TabIndex = 30;
+            cbDetailsRoom.Visible = false;
+            // 
+            // label4
+            // 
+            label4.AutoSize = true;
+            label4.ForeColor = SystemColors.ButtonHighlight;
+            label4.Location = new Point(209, 684);
+            label4.Name = "label4";
+            label4.Size = new Size(49, 20);
+            label4.TabIndex = 29;
+            label4.Text = "Room";
+            label4.Visible = false;
+            // 
+            // startRentalModal
+            // 
+            startRentalModal.Anchor = AnchorStyles.None;
+            startRentalModal.BackColor = Color.FromArgb(48, 54, 92);
+            startRentalModal.BorderStyle = BorderStyle.FixedSingle;
+            startRentalModal.Controls.Add(btnCancelStartRental);
+            startRentalModal.Controls.Add(btnConfirmStartRental);
+            startRentalModal.Controls.Add(cbStartRentalRoom);
+            startRentalModal.Controls.Add(labelStartRentalRoom);
+            startRentalModal.Controls.Add(lblStartRentalStudent);
+            startRentalModal.Controls.Add(labelStartRentalStudent);
+            startRentalModal.Controls.Add(lblStartRentalTitle);
+            startRentalModal.Location = new Point(560, 300);
+            startRentalModal.Name = "startRentalModal";
+            startRentalModal.Size = new Size(560, 265);
+            startRentalModal.TabIndex = 15;
+            startRentalModal.Visible = false;
+            // 
+            // btnCancelStartRental
+            // 
+            btnCancelStartRental.BackColor = Color.FromArgb(255, 192, 192);
+            btnCancelStartRental.ForeColor = SystemColors.ActiveCaptionText;
+            btnCancelStartRental.Location = new Point(424, 212);
+            btnCancelStartRental.Name = "btnCancelStartRental";
+            btnCancelStartRental.Size = new Size(105, 36);
+            btnCancelStartRental.TabIndex = 6;
+            btnCancelStartRental.Text = "Cancel";
+            btnCancelStartRental.UseVisualStyleBackColor = false;
+            // 
+            // btnConfirmStartRental
+            // 
+            btnConfirmStartRental.BackColor = Color.FromArgb(128, 255, 128);
+            btnConfirmStartRental.ForeColor = SystemColors.ActiveCaptionText;
+            btnConfirmStartRental.Location = new Point(309, 212);
+            btnConfirmStartRental.Name = "btnConfirmStartRental";
+            btnConfirmStartRental.Size = new Size(105, 36);
+            btnConfirmStartRental.TabIndex = 5;
+            btnConfirmStartRental.Text = "Confirm";
+            btnConfirmStartRental.UseVisualStyleBackColor = false;
+            // 
+            // cbStartRentalRoom
+            // 
+            cbStartRentalRoom.DropDownStyle = ComboBoxStyle.DropDownList;
+            cbStartRentalRoom.FormattingEnabled = true;
+            cbStartRentalRoom.Location = new Point(29, 158);
+            cbStartRentalRoom.Name = "cbStartRentalRoom";
+            cbStartRentalRoom.Size = new Size(500, 28);
+            cbStartRentalRoom.TabIndex = 4;
+            // 
+            // labelStartRentalRoom
+            // 
+            labelStartRentalRoom.AutoSize = true;
+            labelStartRentalRoom.ForeColor = SystemColors.ButtonHighlight;
+            labelStartRentalRoom.Location = new Point(29, 135);
+            labelStartRentalRoom.Name = "labelStartRentalRoom";
+            labelStartRentalRoom.Size = new Size(96, 20);
+            labelStartRentalRoom.TabIndex = 3;
+            labelStartRentalRoom.Text = "Select Room:";
+            // 
+            // lblStartRentalStudent
+            // 
+            lblStartRentalStudent.AutoEllipsis = true;
+            lblStartRentalStudent.ForeColor = SystemColors.ButtonHighlight;
+            lblStartRentalStudent.Location = new Point(29, 95);
+            lblStartRentalStudent.Name = "lblStartRentalStudent";
+            lblStartRentalStudent.Size = new Size(500, 29);
+            lblStartRentalStudent.TabIndex = 2;
+            lblStartRentalStudent.Text = "—";
+            // 
+            // labelStartRentalStudent
+            // 
+            labelStartRentalStudent.AutoSize = true;
+            labelStartRentalStudent.ForeColor = SystemColors.ButtonHighlight;
+            labelStartRentalStudent.Location = new Point(29, 72);
+            labelStartRentalStudent.Name = "labelStartRentalStudent";
+            labelStartRentalStudent.Size = new Size(63, 20);
+            labelStartRentalStudent.TabIndex = 1;
+            labelStartRentalStudent.Text = "Student:";
+            // 
+            // lblStartRentalTitle
+            // 
+            lblStartRentalTitle.AutoSize = true;
+            lblStartRentalTitle.Font = new Font("Segoe UI", 12F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            lblStartRentalTitle.ForeColor = SystemColors.ButtonHighlight;
+            lblStartRentalTitle.Location = new Point(24, 24);
+            lblStartRentalTitle.Name = "lblStartRentalTitle";
+            lblStartRentalTitle.Size = new Size(126, 28);
+            lblStartRentalTitle.TabIndex = 0;
+            lblStartRentalTitle.Text = "Start Rental";
             // 
             // StudentsView
             // 
@@ -1258,6 +1357,7 @@
             Controls.Add(paymentHistoryPanel);
             Controls.Add(dgvStudents);
             Controls.Add(topBar);
+            Controls.Add(startRentalModal);
             Name = "StudentsView";
             Size = new Size(1677, 975);
             Load += Students_Load;
@@ -1281,6 +1381,8 @@
             grpDetails.ResumeLayout(false);
             grpDetails.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)detailsStudenttImg).EndInit();
+            startRentalModal.ResumeLayout(false);
+            startRentalModal.PerformLayout();
             ResumeLayout(false);
         }
 
@@ -1335,14 +1437,12 @@
         private PictureBox addStudentImg;
         private Button cancelTenantRegister;
         private Button registerTenantBtn;
-        private Button addTenantCloseBtn;
         private Label totalStudents;
         private Label label15;
         private TextBox studentEmailTxt;
         private Label label8;
         private TextBox studentMiddleNameTxt;
         private Label label5;
-        private TextBox tenantFirstNameTxt;
         private Label label9;
         private TextBox studentLastNameTxt;
         private Label label12;
@@ -1362,6 +1462,8 @@
         private TextBox details_profilePathTxt;
         private PictureBox detailsStudenttImg;
         private Button endRentalBtn;
+        private Button btnViewCurrentRental;
+        private Button btnStartRental;
         private ComboBox cbDetailsRoom;
         private Label label4;
         private Button studentUpdateBtn;
@@ -1387,7 +1489,13 @@
         private Label lblStudentTitle;
         private Button addStudentCloseBtn;
         private TextBox studentFirstnameTxt;
-        private ComboBox cbOccType;
-        private Label label18;
+        private Panel startRentalModal;
+        private Button btnCancelStartRental;
+        private Button btnConfirmStartRental;
+        private ComboBox cbStartRentalRoom;
+        private Label labelStartRentalRoom;
+        private Label lblStartRentalStudent;
+        private Label labelStartRentalStudent;
+        private Label lblStartRentalTitle;
     }
 }

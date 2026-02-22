@@ -51,12 +51,25 @@ namespace BoardingHouse
         {
             SetupStatusFilter();
             SetupDetailsStatusButtons();
+            SetupAddRoomStatusOptions();
+            DisableOccupancyWriteUi();
 
             LoadBoardingHouseDropdown();
 
             // default load
             if (cbBoardingHouses.Items.Count > 0)
                 cbBoardingHouses.SelectedIndex = 0;
+        }
+
+        private void DisableOccupancyWriteUi()
+        {
+            btnMarkAvailable.Visible = false;
+            btnMarkAvailable.Enabled = false;
+            btnMarkOccupied.Visible = false;
+            btnMarkOccupied.Enabled = false;
+
+            addTenantBtn.Visible = false;
+            addTenantBtn.Enabled = false;
         }
 
         private void SetupStatusFilter()
@@ -73,11 +86,19 @@ namespace BoardingHouse
 
         private void SetupDetailsStatusButtons()
         {
-            btnMarkAvailable.Click += (s, e) => TrySetRoomStatus("AVAILABLE");
-            btnMarkOccupied.Click += (s, e) => TrySetRoomStatus("OCCUPIED");
-            btnMarkMaintenance.Click += (s, e) => TrySetRoomStatus("MAINTENANCE");
-            btnMarkInactive.Click += (s, e) => TrySetRoomStatus("INACTIVE");
+            btnMarkAvailable.Visible = false;
+            btnMarkAvailable.Enabled = false;
+            btnMarkOccupied.Visible = false;
+            btnMarkOccupied.Enabled = false;
+        }
 
+        private void SetupAddRoomStatusOptions()
+        {
+            addRoomStatusCb.Items.Clear();
+            addRoomStatusCb.Items.Add("AVAILABLE");
+            addRoomStatusCb.Items.Add("MAINTENANCE");
+            addRoomStatusCb.Items.Add("INACTIVE");
+            addRoomStatusCb.SelectedItem = "AVAILABLE";
         }
 
         private void LoadBoardingHouseDropdown()
@@ -217,7 +238,6 @@ namespace BoardingHouse
                             FROM rentals ren
                             WHERE ren.room_id = r.id
                               AND ren.status = 'ACTIVE'
-                              AND (ren.end_date IS NULL OR ren.end_date >= CURDATE())
                         ) AS active_tenants_count
                     FROM rooms r
                     WHERE r.boarding_house_id = @bhId
@@ -226,14 +246,12 @@ namespace BoardingHouse
                             r.room_no LIKE @kwLike OR
                             r.room_type LIKE @kwLike
                           )
-                      AND (@st = 'ALL' OR r.status = @st)
                     ORDER BY r.room_no ASC;
                 ";
 
                     cmd.Parameters.AddWithValue("@bhId", _selectedBhId);
                     cmd.Parameters.AddWithValue("@kw", keyword);
                     cmd.Parameters.AddWithValue("@kwLike", "%" + keyword + "%");
-                    cmd.Parameters.AddWithValue("@st", statusFilter);
 
                     using (var r = cmd.ExecuteReader())
                     {
@@ -243,14 +261,21 @@ namespace BoardingHouse
                             string roomNo = r["room_no"]?.ToString() ?? "";
                             string type = r["room_type"]?.ToString() ?? "";
                             int cap = r["capacity"] == DBNull.Value ? 0 : Convert.ToInt32(r["capacity"]);
-                            string status = r["status"]?.ToString() ?? "";
+                            string persistedStatus = r["status"]?.ToString() ?? "";
                             int activeTenantCount = r["active_tenants_count"] == DBNull.Value ? 0 : Convert.ToInt32(r["active_tenants_count"]);
+                            string derivedStatus = ComputeDerivedStatus(persistedStatus, activeTenantCount, cap);
+
+                            if (!string.Equals(statusFilter, "ALL", StringComparison.OrdinalIgnoreCase) &&
+                                !string.Equals(derivedStatus, statusFilter, StringComparison.OrdinalIgnoreCase))
+                            {
+                                continue;
+                            }
 
                             decimal rate = 0m;
                             if (r["monthly_rate"] != DBNull.Value)
                                 rate = Convert.ToDecimal(r["monthly_rate"], CultureInfo.InvariantCulture);
 
-                            var card = BuildRoomCard(roomId, roomNo, type, cap, rate, status, activeTenantCount);
+                            var card = BuildRoomCard(roomId, roomNo, type, cap, rate, derivedStatus, activeTenantCount);
                             flpRooms.Controls.Add(card);
                         }
                     }
@@ -387,11 +412,11 @@ namespace BoardingHouse
 
             var lblTenant = new Label
             {
-                Text = activeTenantCount > 0 ? $"Tenants: {activeTenantCount}" : "Tenants: (none)",
+                Text = $"Active: {activeTenantCount}  |  Slots: {Math.Max(0, cap - activeTenantCount)}",
                 AutoSize = false,
                 Dock = DockStyle.Fill,
                 Font = new Font("Segoe UI", 9, FontStyle.Regular),
-                ForeColor = activeTenantCount > 0 ? Color.Black : Color.DimGray,
+                ForeColor = Color.Black,
                 TextAlign = ContentAlignment.MiddleLeft,
                 Padding = new Padding(5, 0, 5, 0),
                 BackColor = Color.Transparent
@@ -429,6 +454,18 @@ namespace BoardingHouse
                 case "INACTIVE": return Color.FromArgb(240, 200, 200);
                 default: return Color.White;
             }
+        }
+
+        private static string ComputeDerivedStatus(string roomStatus, int activeCount, int capacity)
+        {
+            string persisted = (roomStatus ?? "").Trim().ToUpperInvariant();
+            if (persisted == "MAINTENANCE" || persisted == "INACTIVE")
+                return persisted;
+
+            if (capacity > 0 && activeCount >= capacity)
+                return "OCCUPIED";
+
+            return "AVAILABLE";
         }
 
         private void RoomCard_Click(object sender, EventArgs e)
@@ -510,14 +547,17 @@ namespace BoardingHouse
                             rate = Convert.ToDecimal(r["monthly_rate"], CultureInfo.InvariantCulture);
                         detailsRate.Text = rate.ToString("N2");
 
-                        detailsStatus.Text = r["status"]?.ToString() ?? "";
+                        string persistedStatus = r["status"]?.ToString() ?? "";
                         detailsNotes.Text = r["notes"] == DBNull.Value ? "" : r["notes"]?.ToString();
                         LoadRoomTenants(roomId);
                         int activeTenantCount = GetActiveTenantCount(roomId);
                         int capacity = r["capacity"] == DBNull.Value
                         ? 0
                         : Convert.ToInt32(r["capacity"]);
-                        lblOccupancy.Text = $"Occupancy: {activeTenantCount} / {capacity}";
+                        int availableSlots = Math.Max(0, capacity - activeTenantCount);
+                        string derivedStatus = ComputeDerivedStatus(persistedStatus, activeTenantCount, capacity);
+                        detailsStatus.Text = derivedStatus;
+                        lblOccupancy.Text = $"Occupancy: {activeTenantCount} / {capacity}  |  Available Slots: {availableSlots}";
                     }
                 }
             }
@@ -532,36 +572,20 @@ namespace BoardingHouse
         {
             if (_selectedRoomId <= 0) return;
 
+            string normalized = (newStatus ?? "").Trim().ToUpperInvariant();
+            if (normalized != "MAINTENANCE" && normalized != "INACTIVE")
+            {
+                MessageBox.Show(
+                    "Room occupancy is derived from ACTIVE rentals and cannot be edited here.\n\n" +
+                    "Only MAINTENANCE or INACTIVE manual overrides are allowed in Rooms.",
+                    "Read-Only Occupancy",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information
+                );
+                return;
+            }
+
             int uid = CurrentUserId > 0 ? CurrentUserId : 1;
-            bool hasActiveRental = HasActiveRental(_selectedRoomId);
-
-            // Relationship rules:
-            // - If active rental exists => room is occupied by business logic; block other statuses
-            if (hasActiveRental && newStatus != "OCCUPIED")
-            {
-                MessageBox.Show(
-                    "This room has an ACTIVE rental.\n" +
-                    "You cannot set it to AVAILABLE/MAINTENANCE/INACTIVE while occupied.\n\n" +
-                    "End the rental first.",
-                    "Action Denied",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Warning
-                );
-                return;
-            }
-
-            // - If no active rental => should not be set to OCCUPIED directly
-            if (!hasActiveRental && newStatus == "OCCUPIED")
-            {
-                MessageBox.Show(
-                    "This room has NO active rental.\n" +
-                    "To mark as OCCUPIED, create an ACTIVE rental for this room.",
-                    "Action Denied",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Warning
-                );
-                return;
-            }
 
             try
             {
@@ -618,7 +642,7 @@ namespace BoardingHouse
                         LIMIT 1;
                     ";
 
-                        cmd.Parameters.AddWithValue("@st", newStatus);
+                        cmd.Parameters.AddWithValue("@st", normalized);
                         cmd.Parameters.AddWithValue("@id", roomId);
 
                         int affected = cmd.ExecuteNonQuery();
@@ -637,7 +661,7 @@ namespace BoardingHouse
                         beforeRoomType,
                         beforeCapacity,
                         beforeRate,
-                        newStatus,
+                        normalized,
                         beforeNotes);
                     AuditLogger.Log(uid, "UPDATE", "rooms", roomId, new
                     {
@@ -669,8 +693,7 @@ namespace BoardingHouse
                         SELECT COUNT(*)
                         FROM rentals
                         WHERE room_id = @roomId
-                          AND status = 'ACTIVE'
-                          AND (end_date IS NULL OR end_date >= CURDATE());
+                          AND status = 'ACTIVE';
                     ";
                 cmd.Parameters.AddWithValue("@roomId", roomId);
 
@@ -693,13 +716,19 @@ namespace BoardingHouse
                 EnsureOpen(conn);
 
                 cmd.CommandText = @"
-                        SELECT o.full_name, o.lastname, o.firstname, o.middlename
+                        SELECT
+                            r.id AS rental_id,
+                            o.id AS occupant_id,
+                            o.full_name, o.lastname, o.firstname, o.middlename,
+                            o.contact_no,
+                            r.start_date,
+                            r.end_date,
+                            r.status
                         FROM rentals r
                         JOIN occupants o ON o.id = r.occupant_id
                         WHERE r.room_id = @roomId
                           AND r.status = 'ACTIVE'
-                          AND (r.end_date IS NULL OR r.end_date >= CURDATE())
-                        ORDER BY o.lastname, o.firstname;
+                        ORDER BY r.start_date DESC;
                     ";
                 cmd.Parameters.AddWithValue("@roomId", roomId);
 
@@ -718,7 +747,19 @@ namespace BoardingHouse
                             fullName += $" {middle}";
                     }
 
-                    detailsTenantsList.Items.Add(fullName.Trim(' ', ','));
+                    string contact = (reader["contact_no"]?.ToString() ?? "").Trim();
+                    if (string.IsNullOrWhiteSpace(contact))
+                        contact = "-";
+
+                    string rentalStatus = (reader["status"]?.ToString() ?? "").Trim();
+                    if (string.IsNullOrWhiteSpace(rentalStatus))
+                        rentalStatus = "ACTIVE";
+
+                    string startDateText = "-";
+                    if (reader["start_date"] != DBNull.Value)
+                        startDateText = Convert.ToDateTime(reader["start_date"]).ToString("yyyy-MM-dd");
+
+                    detailsTenantsList.Items.Add($"{fullName.Trim(' ', ',')} | {contact} | {startDateText} | {rentalStatus}");
                     found = true;
                 }
 
@@ -1034,22 +1075,30 @@ namespace BoardingHouse
 
         private void btnMarkAvailable_Click(object sender, EventArgs e)
         {
-
+            MessageBox.Show(
+                "Room occupancy is derived from ACTIVE rentals and cannot be edited here.",
+                "Read-Only Occupancy",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
         }
 
         private void btnMarkOccupied_Click(object sender, EventArgs e)
         {
-
+            MessageBox.Show(
+                "Room occupancy is derived from ACTIVE rentals and cannot be edited here.",
+                "Read-Only Occupancy",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
         }
 
         private void btnMarkMaintenance_Click(object sender, EventArgs e)
         {
-
+            TrySetRoomStatus("MAINTENANCE");
         }
 
         private void btnMarkInactive_Click(object sender, EventArgs e)
         {
-
+            TrySetRoomStatus("INACTIVE");
         }
 
         private void flpRooms_Paint(object sender, PaintEventArgs e)
@@ -1066,184 +1115,22 @@ namespace BoardingHouse
         private void addTenantBtn_Click(object sender, EventArgs e)
         {
             SoundClicked.operationsBtn();
-            int bhId = _selectedBhId;
-
-            if (bhId <= 0 && _selectedRoomId > 0)
-                bhId = GetBoardingHouseIdForRoom(_selectedRoomId);
-
-            if (bhId <= 0 && cbBoardingHouses.SelectedValue != null &&
-                int.TryParse(cbBoardingHouses.SelectedValue.ToString(), out int currentBh))
-            {
-                bhId = currentBh;
-            }
-
-            if (FindForm() is not MainLayout main)
-                return;
-
-            main.OpenAddTenantModalFromRooms(bhId);
+            MessageBox.Show(
+                "Room occupancy is derived from ACTIVE rentals and cannot be edited here.",
+                "Read-Only Occupancy",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
         }
 
 
         private void assignTenantBtn_Click(object sender, EventArgs e)
         {
             SoundClicked.operationsBtn();
-            if (_selectedRoomId <= 0)
-            {
-                MessageBox.Show("Please select a room first.", "Info",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
-
-            if (_selectedTenantId <= 0)
-            {
-                MessageBox.Show("Save/select a tenant first before assigning.", "Info",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
-
-            int uid = CurrentUserId > 0 ? CurrentUserId : 1;
-
-            try
-            {
-                using (var conn = DbConnectionFactory.CreateConnection())
-                using (var cmd = conn.CreateCommand())
-                {
-                    EnsureOpen(conn);
-
-                    // Get capacity + monthly_rate from room
-                    cmd.CommandText = @"SELECT capacity, monthly_rate FROM rooms WHERE id = @id LIMIT 1;";
-                    cmd.Parameters.AddWithValue("@id", _selectedRoomId);
-
-                    int capacity = 0;
-                    decimal roomRate = 0m;
-
-                    using (var r = cmd.ExecuteReader())
-                    {
-                        if (!r.Read())
-                        {
-                            MessageBox.Show("Room not found.", "Info",
-                                MessageBoxButtons.OK, MessageBoxIcon.Information);
-                            return;
-                        }
-
-                        capacity = r["capacity"] == DBNull.Value ? 0 : Convert.ToInt32(r["capacity"]);
-                        roomRate = r["monthly_rate"] == DBNull.Value ? 0m : Convert.ToDecimal(r["monthly_rate"]);
-                    }
-
-                    if (roomRate <= 0m)
-                    {
-                        MessageBox.Show("This room has an invalid monthly rate. Please update the room rate first.",
-                            "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                        return;
-                    }
-
-                    // Resolve occupant_id from selected tenant_id
-                    cmd.Parameters.Clear();
-                    cmd.CommandText = @"
-                SELECT occupant_id
-                FROM tenant_occupant_map
-                WHERE tenant_id = @tenantId
-                LIMIT 1;
-            ";
-                    cmd.Parameters.AddWithValue("@tenantId", _selectedTenantId);
-
-                    var occObj = cmd.ExecuteScalar();
-                    int occupantId = (occObj == null || occObj == DBNull.Value) ? 0 : Convert.ToInt32(occObj);
-                    if (occupantId <= 0)
-                    {
-                        MessageBox.Show("This tenant has no linked occupant record.", "Action Denied",
-                            MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                        return;
-                    }
-
-                    // Active tenants count (ACTIVE rentals)
-                    cmd.Parameters.Clear();
-                    cmd.CommandText = @"
-                SELECT COUNT(*)
-                FROM rentals
-                WHERE room_id = @roomId
-                  AND status = 'ACTIVE'
-                  AND (end_date IS NULL OR end_date >= CURDATE());
-            ";
-                    cmd.Parameters.AddWithValue("@roomId", _selectedRoomId);
-
-                    int activeCount = Convert.ToInt32(cmd.ExecuteScalar() ?? 0);
-
-                    if (capacity > 0 && activeCount >= capacity)
-                    {
-                        MessageBox.Show("Room is already full based on its capacity.", "Action Denied",
-                            MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                        return;
-                    }
-
-                    // Tenant already has ACTIVE rental anywhere?
-                    cmd.Parameters.Clear();
-                    cmd.CommandText = @"
-                SELECT COUNT(*)
-                FROM rentals
-                WHERE occupant_id = @occupantId
-                  AND status = 'ACTIVE'
-                  AND (end_date IS NULL OR end_date >= CURDATE());
-            ";
-                    cmd.Parameters.AddWithValue("@occupantId", occupantId);
-
-                    int tenantActive = Convert.ToInt32(cmd.ExecuteScalar() ?? 0);
-                    if (tenantActive > 0)
-                    {
-                        MessageBox.Show("This tenant already has an ACTIVE room.\nEnd their current stay first.", "Action Denied",
-                            MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                        return;
-                    }
-
-                    cmd.Parameters.Clear();
-                    cmd.CommandText = @"
-                        INSERT INTO rentals
-                            (occupant_id, room_id, start_date, end_date, monthly_rate, deposit_amount,
-                             status, notes, created_by, created_at, updated_at)
-                        VALUES
-                            (@occupantId, @roomId, CURDATE(), NULL, @rate, @deposit,
-                             'ACTIVE', NULL, @createdBy, NOW(), NOW());
-                    ";
-                    cmd.Parameters.AddWithValue("@occupantId", occupantId);
-                    cmd.Parameters.AddWithValue("@roomId", _selectedRoomId);
-                    cmd.Parameters.AddWithValue("@rate", roomRate);
-                    cmd.Parameters.AddWithValue("@deposit", 0.00m);
-                    cmd.Parameters.AddWithValue("@createdBy", CurrentUserId > 0 ? (object)CurrentUserId : DBNull.Value);
-
-                    cmd.ExecuteNonQuery();
-
-                    using (var idCmd = conn.CreateCommand())
-                    {
-                        idCmd.CommandText = "SELECT LAST_INSERT_ID();";
-                        long rentalId = Convert.ToInt64(idCmd.ExecuteScalar());
-                        var rentalDetails = new
-                        {
-                            occupant_id = occupantId,
-                            tenant_id = _selectedTenantId,
-                            room_id = _selectedRoomId,
-                            start_date = DateTime.Today,
-                            end_date = (DateTime?)null,
-                            monthly_rate = roomRate,
-                            deposit_amount = 0.00m,
-                            status = "ACTIVE",
-                            created_by = uid
-                        };
-                        AuditLogger.Log(uid, "CREATE", "rentals", rentalId, rentalDetails);
-                    }
-
-                }
-
-                LoadRoomDetails(_selectedRoomId);
-                LoadRoomsTiles();
-
-                MessageBox.Show("Tenant assigned successfully.", "Success",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Failed to assign tenant.\n" + ex.Message,
-                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
+            MessageBox.Show(
+                "Room occupancy is derived from ACTIVE rentals and cannot be edited here.",
+                "Read-Only Occupancy",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
         }
 
         private static string BuildFullName(string ln, string fn, string mn)
@@ -1697,7 +1584,6 @@ namespace BoardingHouse
                 JOIN occupants o ON o.id = r.occupant_id
                 WHERE r.room_id = @roomId
                   AND r.status = 'ACTIVE'
-                  AND (r.end_date IS NULL OR r.end_date >= CURDATE())
                 ORDER BY o.lastname, o.firstname;", conn);
 
                 cmd.Parameters.AddWithValue("@roomId", roomId);

@@ -354,8 +354,8 @@ namespace BoardingHouse
             SoundClicked.operationsBtn();
             LoadOwnersForCombo(cbOwner);
             txtContactNo.Text = "";
-            _selectedBoardingHouseId = 0;           
-            _pendingSingleMarkerJson = null;     
+            _selectedBoardingHouseId = 0;
+            _pendingSingleMarkerJson = null;
             await ResetSingleMapAsync();
             ShowAddModal();
         }
@@ -1418,7 +1418,7 @@ namespace BoardingHouse
         {
             SoundClicked.operationsBtn();
 
-            
+
         }
 
         private async Task<bool> PrepareSingleMapAsync()
@@ -1484,7 +1484,7 @@ namespace BoardingHouse
 
         private void LoadRooms(int bhId)
         {
-            
+
         }
 
         private void InitializeRoomsHostPanelUI()
@@ -2050,13 +2050,13 @@ namespace BoardingHouse
 
         private void closeManageRoom_Click(object sender, EventArgs e)
         {
-            
+
         }
 
         private int _selectedRoomId = 0;
         private void dgvRooms_CellClick(object sender, DataGridViewCellEventArgs e)
         {
-            
+
         }
 
         private void UpdateSelectedRoomStatus(string newStatus)
@@ -2179,22 +2179,22 @@ namespace BoardingHouse
 
         private void btnMarkAvailable_Click(object sender, EventArgs e)
         {
-            
+
         }
 
         private void btnMarkOccupied_Click(object sender, EventArgs e)
         {
-            
+
         }
 
         private void btnMarkMaintenance_Click(object sender, EventArgs e)
         {
-            
+
         }
 
         private void btnMarkInactive_Click(object sender, EventArgs e)
         {
-            
+
         }
 
         private void manageRoomsModal_Paint(object sender, PaintEventArgs e)
@@ -2485,7 +2485,10 @@ namespace BoardingHouse
             }
         }
 
+        private void mapLocatorModal_Paint(object sender, PaintEventArgs e)
+        {
 
+        }
     }
 }
 

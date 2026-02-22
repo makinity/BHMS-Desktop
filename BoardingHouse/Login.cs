@@ -1,5 +1,7 @@
 ﻿using MySql.Data.MySqlClient;
 using System;
+using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 
 namespace BoardingHouse
@@ -11,11 +13,14 @@ namespace BoardingHouse
         public Login()
         {
             InitializeComponent();
+            StyleLoginButton();
+            LoginBtn.MouseEnter += LoginBtn_MouseEnter;
+            LoginBtn.MouseLeave += LoginBtn_MouseLeave;
         }
 
         private void pictureBox1_Click(object sender, EventArgs e)
         {
-            this.Close();
+            Close();
         }
 
         private int AuthenticateUser(string username, string password)
@@ -66,7 +71,6 @@ namespace BoardingHouse
                 return;
             }
 
-            // ✅ store the id
             userId = AuthenticateUser(username, password);
 
             if (userId > 0)
@@ -88,6 +92,32 @@ namespace BoardingHouse
             var layout = new MainLayout(userId);
             layout.FormClosed += (s, args) => Application.Exit();
             layout.Show();
+        }
+
+
+        private void StyleLoginButton()
+        {
+            LoginBtn.FlatStyle = FlatStyle.Flat;
+            LoginBtn.FlatAppearance.BorderSize = 0;
+            LoginBtn.ForeColor = Color.White;
+            LoginBtn.Cursor = Cursors.Hand;
+        }
+
+        private void LoginBtn_MouseEnter(object sender, EventArgs e)
+        {
+            LoginBtn.BackColor = Color.FromArgb(0, 150, 255);
+        }
+
+        private void LoginBtn_MouseLeave(object sender, EventArgs e)
+        {
+            LoginBtn.BackColor = Color.FromArgb(0, 120, 215);
+        }
+
+        private void label5_Click(object sender, EventArgs e)
+        {
+            Register open = new Register();
+            this.Hide();
+            open.Show();
         }
     }
 }
